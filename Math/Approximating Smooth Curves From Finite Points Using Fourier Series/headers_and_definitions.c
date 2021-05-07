@@ -1,0 +1,11 @@
+//int count_numbers(const char* pointer_to_input_points_string);
+//void take_input(complex double* pointer_to_input_points, int number_of_elements_in_array, char* pointer_to_input_points_string);
+//void gen_start_time(const complex double* pointer_to_input_points, double* pointer_to_start_time, int num_input_points);
+//void gen_coefficients(complex double* pointer_to_coefficients, const double* pointer_to_start_time, int number_of_input_points, int max_abs_n);
+//void* integral_thread(void* converted_void_pointer_to_data_struct);
+//complex double integral(int n, const complex double* pointer_to_inputs, const double* pointer_to_start_time, int num_input_points);
+//void gen_output_points(const complex double* pointer_to_coefficients, int num_output_points, complex double* pointer_to_output_points);
+//void* fourier_thread(void* converted_void_pointer_to_data_struct);
+//complex double fourier(double t, const complex double* pointer_to_coefficients, const complex double* pointer_to_coefficients_in_power, int n_max);
+//void print_output_points(const complex double* output_points, int num_output_points);
+//void print_cmplx(const complex double complex_number);
