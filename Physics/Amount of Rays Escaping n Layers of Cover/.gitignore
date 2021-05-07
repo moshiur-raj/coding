@@ -1,0 +1,8 @@
+a.out
+test.c
+test.py
+build/main.o
+build/calc.o
+build/pcg_basic.o
+calculate
+fig.png
