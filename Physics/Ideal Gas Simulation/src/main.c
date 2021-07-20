@@ -9,11 +9,11 @@
 #include "phase-updates.h"
 #include "data-dumper.h"
 
-static void allocate_memory(struct SimulationParameters *param)
+static void allocate_memory(struct SimulationParameters *restrict param)
 {
-	param->position     = malloc((size_t)param->num_molecules*sizeof(vector_t));
-	param->velocity     = malloc((size_t)param->num_molecules*sizeof(vector_t));
-	param->acceleration = malloc((size_t)param->num_molecules*sizeof(vector_t));
+	param->position     = malloc((size_t)param->nmolecules*sizeof(vector_t));
+	param->velocity     = malloc((size_t)param->nmolecules*sizeof(vector_t));
+	param->acceleration = malloc((size_t)param->nmolecules*sizeof(vector_t));
 
 	if (param->position == NULL || param->velocity == NULL || param ->acceleration == NULL)
 	{
@@ -39,28 +39,41 @@ void delete_previous_data_dumps(void)
 	}
 }
 
-void start_simulation(const struct SimulationParameters *restrict param)
+static void simulation(void (*collision_handler)(const struct SimulationParameters *restrict),
+                              void (*phase_update_handler)(const struct SimulationParameters *restrict),
+                              const struct SimulationParameters *restrict param)
 {
-	// static int iteration = 0;
-	delete_previous_data_dumps();
-
 	double t = 0, time_to_dump_data = 0;
 	while (t < param->time_limit)
 	{
-		handle_collisions(param);
-		update_phase(param);
+		collision_handler(param);
+		phase_update_handler(param);
 
 		t += param->dt;
 		if (t > time_to_dump_data)
 		{
 			time_to_dump_data += param->frametime;
-			dump_data(param->position, param->num_molecules);
+			dump_data(param->position, param->nrender);
+			dump_statistical_data(t, param->velocity, param->nmolecules);
 		}
-		// printf(">>> %ith iteration completed.\n", iteration++);
-		// fflush(stdout);
 	}
 }
-static void free_memory(const struct SimulationParameters *param)
+
+void start_simulation(const struct SimulationParameters *restrict param)
+{
+	delete_previous_data_dumps();
+
+	if (param->nthread > 1)
+	{
+		simulation(handle_collisions, update_phase, param);
+	}
+
+	else if (param->nthread == 1)
+	{
+		simulation(st_handle_collisions, st_update_phase, param);
+	}
+}
+static void free_memory(const struct SimulationParameters *restrict param)
 {
 	free(param->position);
 	free(param->velocity);
@@ -70,8 +83,8 @@ static void free_memory(const struct SimulationParameters *param)
 int main(int argc, char *argv[])
 {
 	const struct SimulationParameters param;
-	parse_args(argc, argv, (struct SimulationParameters *)&param);
-	allocate_memory((struct SimulationParameters *)&param);
+	parse_args(argc, argv, (struct SimulationParameters *restrict)&param);
+	allocate_memory((struct SimulationParameters *restrict)&param);
 
 	gen_initial_conditions(&param);
 	start_simulation(&param);

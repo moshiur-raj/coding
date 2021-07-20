@@ -3,6 +3,6 @@
 
 #include <variable-types.h>
 
-void parse_args(int argc, char *argv[], const struct SimulationParameters *restrict param);
+void parse_args(int argc, char *argv[], struct SimulationParameters *restrict param);
 
 #endif

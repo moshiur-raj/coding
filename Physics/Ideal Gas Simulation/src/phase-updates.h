@@ -4,5 +4,6 @@
 #include <variable-types.h>
 
 void update_phase(const struct SimulationParameters *restrict param);
+void st_update_phase(const struct SimulationParameters *restrict param);
 
 #endif

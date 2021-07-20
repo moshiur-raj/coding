@@ -21,7 +21,7 @@ typedef struct vec2 vector_t;
 struct SimulationParameters
 {
 	struct {double x, y, z;} boxsize;
-	int num_molecules, nthread;
+	int nthread, nmolecules, nrender;
 	double dt, time_limit, frametime;
 
 	double relative_mass, radius, temperature;

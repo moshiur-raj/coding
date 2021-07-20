@@ -4,5 +4,6 @@
 #include <variable-types.h>
 
 void handle_collisions(const struct SimulationParameters *restrict param);
+void st_handle_collisions(const struct SimulationParameters *restrict param);
 
 #endif

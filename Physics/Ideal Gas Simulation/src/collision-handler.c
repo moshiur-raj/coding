@@ -57,7 +57,7 @@ static inline double magnitude_squared(vector_t *vec)
 static inline void molecular_collision(int i, const struct SimulationParameters *restrict param)
 {
 	vector_t dr;
-	for (int j = i + 1; j < param->num_molecules; ++j)
+	for (int j = i + 1; j < param->nmolecules; ++j)
 	{
 		dr.x = param->position[i].x - param->position[j].x;
 		dr.y = param->position[i].y - param->position[j].y;
@@ -82,16 +82,22 @@ static inline void molecular_collision(int i, const struct SimulationParameters 
 	}
 }
 
+static inline void handle_collisions_unit(int start, int stop,
+                                          const struct SimulationParameters *restrict param)
+{
+	for(int i = start; i < stop; ++i)
+	{
+		wall_collision(i, param);
+		molecular_collision(i, param);
+	}
+}
+
 void *pthread_function(void *ptr)
 {
 	const struct PthreadFunctionArg *restrict arg = ptr;
 	if (arg->start == KILL_THREAD) {return NULL;}
 
-	for(int i = arg->start; i < arg->stop; ++i)
-	{
-		wall_collision(i, arg->param);
-		molecular_collision(i, arg->param);
-	}
+	handle_collisions_unit(arg->start, arg->stop, arg->param);
 
 	return NULL;
 }
@@ -99,35 +105,19 @@ void *pthread_function(void *ptr)
 static inline void initialize_args(struct PthreadFunctionArg *restrict arg,
                      const struct SimulationParameters *restrict param)
 {
-	if (param->num_molecules >= param->nthread)
+	int increment = param->nmolecules / param->nthread;
+	for (int i = 0; i < param->nthread; ++i)
 	{
-		int increment = param->num_molecules / param->nthread;
-		for (int i = 0; i < param->nthread; ++i)
-		{
-			arg[i].param = param;
-			arg[i].start = i*increment;
-			arg[i].stop  = arg[i].start + increment;
-		}
-		arg[param->nthread - 1].stop = param->num_molecules;
+		arg[i].param = param;
+		arg[i].start = i*increment;
+		arg[i].stop  = arg[i].start + increment;
 	}
-	else
-	{
-		for(int i = 0; i < param->num_molecules; ++i)
-		{
-			arg[i].param = param;
-			arg[i].start = i;
-			arg[i].stop  = i + 1;
-		}
-		for (int i = param->num_molecules; i < param->nthread; ++i)
-		{
-			arg[i].start = KILL_THREAD;
-		}
-	}
+	arg[param->nthread - 1].stop = param->nmolecules;
 }
 
 void handle_collisions(const struct SimulationParameters *restrict param)
 {
-	memset(param->acceleration, 0, (size_t)param->num_molecules*sizeof(param->acceleration[0]));
+	memset(param->acceleration, 0, (size_t)param->nmolecules*sizeof(param->acceleration[0]));
 	
 	struct PthreadFunctionArg arg[param->nthread];
 	initialize_args(arg, param);
@@ -141,4 +131,11 @@ void handle_collisions(const struct SimulationParameters *restrict param)
 	{
 		pthread_join(thread[i], NULL);
 	}
+}
+
+void st_handle_collisions(const struct SimulationParameters *restrict param)
+{
+	memset(param->acceleration, 0, (size_t)param->nmolecules*sizeof(param->acceleration[0]));
+
+	handle_collisions_unit(0, param->nmolecules, param);
 }

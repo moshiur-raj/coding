@@ -1,11 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include <ctype.h>
 #include <sys/sysinfo.h>
 
 #include <variable-types.h>
 
-#define NUM_ARG (11)
+#define NUM_ARG (12)
 
 static int str_is_number(const char *str)
 {
@@ -35,7 +36,7 @@ static void check_args(int argc, char *argv[])
 	if (argc != NUM_ARG + 1)
 	{
 		fprintf(stderr, "ARGUMENT ERROR: There Should Be %i Arguments."
-		        " args: boxsize.x boxsize.y boxsize.z num_molecules dt time_limit fps"
+		        " args: nthead nmolecules nrender dt time_limit fps boxsize.x boxsize.y boxsize.z"
 		        " relative_mass radius temperature.", NUM_ARG);
 		fflush(stderr);
 		exit(EXIT_FAILURE);
@@ -51,13 +52,14 @@ static void check_args(int argc, char *argv[])
 
 void check_params(const struct SimulationParameters *restrict param)
 {
-	if (param->nthread > param->num_molecules)
+	if (param->nthread > param->nmolecules)
 	{
 		fprintf(stderr, "WARNING: number of tasks < number of threads\n");
 		fflush(stderr);
+		exit(EXIT_FAILURE);
 	}
 
-	if (param->num_molecules < 0 || param->dt < 0 || param->time_limit < 0 || param->frametime < 0
+	if (param->nmolecules < 0 || param->dt < 0 || param->time_limit < 0 || param->frametime < 0
 	     || param->relative_mass < 0 || param->radius < 0 || param->temperature < 0)
 	{
 		fprintf(stderr, "ERROR: use positive values");
@@ -79,25 +81,28 @@ void parse_args(int argc, char *argv[], struct SimulationParameters *restrict pa
 {
 	check_args(argc, argv);
 
-	param->nthread       = (int)strtol(argv[1], NULL, 10);
-	param->boxsize.x     = strtod(argv[2], NULL);
-	param->boxsize.y     = strtod(argv[3], NULL);
-	param->boxsize.z     = strtod(argv[4], NULL);
-	param->num_molecules = (int)strtol(argv[5], NULL, 10);
-	param->dt            = strtod(argv[6], NULL);
-	param->time_limit    = strtod(argv[7], NULL);
-	param->frametime		= 1/strtod(argv[8], NULL);
-	param->relative_mass = strtod(argv[9], NULL);
-	param->radius        = strtod(argv[10], NULL);
-	param->temperature   = strtod(argv[11], NULL);
+	param->nthread        = (int)strtol(argv[1], NULL, 10);
+	param->nmolecules     = (int)strtol(argv[2], NULL, 10);
+	param->nrender        = (int)strtol(argv[3], NULL, 10);
+	param->dt             = strtod(argv[4], NULL);
+	param->time_limit     = strtod(argv[5], NULL);
+	param->frametime      = 1/strtod(argv[6], NULL);
+	param->boxsize.x      = strtod(argv[7], NULL);
+	param->boxsize.y      = strtod(argv[8], NULL);
+	param->boxsize.z      = strtod(argv[9], NULL);
+	param->relative_mass  = strtod(argv[10], NULL);
+	param->radius         = strtod(argv[11], NULL);
+	param->temperature    = strtod(argv[12], NULL);
 
 	param->radius_squared = param->radius*param->radius;
-	param->mca_factor     = 1e3/param->radius;
-	param->wca_factor     = 1e3;
+
+	double dspeed         = sqrt(3*8.314*param->temperature / param->relative_mass)*1e-3;
+	param->mca_factor     = dspeed/param->radius/param->dt;
+	param->wca_factor     = dspeed/param->dt;
 
 	// Make the number of molecules even. This is done so it is easier to maintain conservation
 	// of momentum when generating velocities.
-	param->num_molecules += param->num_molecules & 1;
+	param->nmolecules += param->nmolecules & 1;
 
 
 	if (param->nthread <= 0)

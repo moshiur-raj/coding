@@ -8,29 +8,34 @@
 struct PthreadFunctionArg
 {
 	int start, stop;
-	double dt;
-	vector_t *restrict position, *restrict velocity, *restrict acceleration;
+	const struct SimulationParameters *restrict param;
 };
+
+static inline void phase_update_unit(int start, int stop,
+                                     const struct SimulationParameters *restrict param)
+{
+	for (int i = start; i < stop; ++i)
+	{
+		param->position[i].x += param->velocity[i].x * param->dt;
+		param->position[i].y += param->velocity[i].y * param->dt;
+		#ifdef VEC3D
+			param->position[i].z += param->velocity[i].z * param->dt;
+		#endif
+
+		param->velocity[i].x += param->acceleration[i].x * param->dt;
+		param->velocity[i].y += param->acceleration[i].y * param->dt;
+		#ifdef VEC3D
+			param->velocity[i].z += param->acceleration[i].z * dt;
+		#endif
+	}
+}
 
 static void *pthread_function(void *ptr)
 {
 	const struct PthreadFunctionArg *arg = ptr;
 	if (arg->start == KILL_THREAD) {return NULL;}
 
-	for (int i = arg->start; i < arg->stop; ++i)
-	{
-		arg->position[i].x += arg->velocity[i].x * arg->dt;
-		arg->position[i].y += arg->velocity[i].y * arg->dt;
-		#ifdef VEC3D
-			arg->position[i].z += arg->velocity[i].z * arg->dt;
-		#endif
-
-		arg->velocity[i].x += arg->acceleration[i].x * arg->dt;
-		arg->velocity[i].y += arg->acceleration[i].y * arg->dt;
-		#ifdef VEC3D
-			arg->velocity[i].z += arg->acceleration[i].z * dt;
-		#endif
-	}
+	phase_update_unit(arg->start, arg->stop, arg->param);
 
 	return NULL;
 }
@@ -38,34 +43,14 @@ static void *pthread_function(void *ptr)
 static inline void initialize_args(struct PthreadFunctionArg *restrict arg,
                                    const struct SimulationParameters *restrict param)
 {
-	struct PthreadFunctionArg prototype = {.dt = param->dt,
-	                                           .position= param->position,
-	                                           .velocity=param->velocity,
-	                                           .acceleration = param->acceleration};
-	if (param->num_molecules >= param->nthread)
+	int increment = param->nmolecules / param->nthread;
+	for (int i = 0; i < param->nthread; ++i)
 	{
-		int increment = param->num_molecules / param->nthread;
-		for (int i = 0; i < param->nthread; ++i)
-		{
-			arg[i] = prototype;
-			arg[i].start = i*increment;
-			arg[i].stop  = arg[i].start + increment;
-		}
-		arg[param->nthread - 1].stop = param->num_molecules;
+		arg[i].param = param;
+		arg[i].start = i*increment;
+		arg[i].stop  = arg[i].start + increment;
 	}
-	else
-	{
-		for(int i = 0; i < param->num_molecules; ++i)
-		{
-			arg[i] = prototype;
-			arg[i].start = i;
-			arg[i].stop  = i + 1;
-		}
-		for (int i = param->num_molecules; i < param->nthread; ++i)
-		{
-			arg[i].start = KILL_THREAD;
-		}
-	}
+	arg[param->nthread - 1].stop = param->nmolecules;
 }
 
 void update_phase(const struct SimulationParameters *restrict param)
@@ -82,4 +67,9 @@ void update_phase(const struct SimulationParameters *restrict param)
 	{
 		pthread_join(thread[i], NULL);
 	}
+}
+
+void st_update_phase(const struct SimulationParameters *restrict param)
+{
+	phase_update_unit(0, param->nmolecules, param);
 }

@@ -2,7 +2,7 @@
 
 #include <variable-types.h>
 
-void dump_data(vector_t *restrict position, int num_molecules)
+void dump_data(const vector_t *restrict position, int nrender)
 {
 	FILE *xfptr = fopen(X_DATA, "a"),
 		 *yfptr = fopen(Y_DATA, "a");
@@ -10,7 +10,7 @@ void dump_data(vector_t *restrict position, int num_molecules)
 		FILE *zfptr = fopen(Z_DATA, "a");
 	#endif
 
-	for (int i = 0; i < num_molecules - 1; ++i)
+	for (int i = 0; i < nrender - 1; ++i)
 	{
 		fprintf(xfptr, "%.6le,", position[i].x);
 		fprintf(yfptr, "%.6le,", position[i].y);
@@ -18,12 +18,27 @@ void dump_data(vector_t *restrict position, int num_molecules)
 			fprintf(zfptr, "%.6le,", position[i].z);
 		#endif
 	}
-	fprintf(xfptr, "%.6le\n", position[num_molecules - 1].x);
-	fprintf(yfptr, "%.6le\n", position[num_molecules - 1].y);
+	fprintf(xfptr, "%.6le\n", position[nrender - 1].x);
+	fprintf(yfptr, "%.6le\n", position[nrender - 1].y);
 	fclose(xfptr);
 	fclose(yfptr);
 	#ifdef VEC3D
-		fprintf(zfptr, "%.6le\n", position[num_molecules - 1].z);
+		fprintf(zfptr, "%.6le\n", position[nmolecules - 1].z);
 		fclose(zfptr);
 	#endif
+}
+
+void dump_statistical_data(double t, const vector_t *restrict velocity, int nmolecules)
+{
+	double rms_squared = 0;
+	vector_t dmomentum = {.x = 0, .y = 0};
+	for(int i = 0; i < nmolecules; ++i)
+	{
+		rms_squared += velocity[i].x*velocity[i].x + velocity[i].y*velocity[i].y;
+		dmomentum.x += velocity[i].x;
+		dmomentum.y += velocity[i].y;
+	}
+	rms_squared /= nmolecules;
+	printf("TIME ==> %7.3lf\tRMS_SQUARED ==> %7.3lf\tMOMENTUM_X ==> %7.3lf\tMOMENTUM_Y ==> %7.3lf\n",
+	       t, rms_squared, dmomentum.x, dmomentum.y);
 }
