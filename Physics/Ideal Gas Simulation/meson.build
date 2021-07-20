@@ -4,7 +4,7 @@ project('Ideal Gas Simulation', 'c',
   'warning_level=3',
   'c_std=gnu18',
   'buildtype=custom',
-  'optimization=2',
+  'optimization=3',
   'debug=false',
   ]
 )

@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <sys/random.h>
@@ -31,18 +32,28 @@ void gen_initial_conditions(const struct SimulationParameters *restrict param)
 	getentropy(&seed, sizeof(seed));
 	srand48_r(seed, &buffer);
 
-	for(int i = 0; i < param->num_molecules; ++i)
+	double offset = param->radius * SPAWN_OFFSET_FACTOR;
+	struct {double x, y, z;} reduced_boxsize = {
+		.x = param->boxsize.x - 2*offset,
+		.y = param->boxsize.y - 2*offset,
+		.z = param->boxsize.z - 2*offset
+	};
+
+	for(int i = 0; i < param->nmolecules; ++i)
 	{
 		drand48_r(&buffer, &drandom);
-		param->position[i].x = drandom * param->boxsize.x;
-		param->position[i].y = drandom * param->boxsize.y;
+		param->position[i].x = offset + drandom * reduced_boxsize.x;
+		drand48_r(&buffer, &drandom);
+		param->position[i].y = offset + drandom * reduced_boxsize.y;
 		#ifdef VEC3D
-			param->position[i].z = drandom * param->boxsize.z;
+			drand48_r(&buffer, &drandom);
+			param->position[i].z = offset + drandom * reduced_boxsize.z;
 		#endif
 	}
 
 	double rms_speed = sqrt(3*UNIVERSAL_GAS_CONST*param->temperature / param->relative_mass);
-	for (int i = 0; i < param->num_molecules - 1; i += 2)
+	printf("RMS_0_SQUARED ==> %7.3lf\n", rms_speed*rms_speed);
+	for (int i = 0; i < param->nmolecules - 1; i += 2)
 	{
 		vrand48_r(&buffer, rms_speed, &param->velocity[i]);
 		param->velocity[i + 1].x = -param->velocity[i].x;
