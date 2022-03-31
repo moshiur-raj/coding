@@ -54,6 +54,7 @@ static void simulation(void (*collision_handler)(const struct SimulationParamete
 		{
 			time_to_dump_data += param->frametime;
 			dump_data(param->position, param->nrender);
+			// debug
 			dump_statistical_data(t, param->velocity, param->nmolecules);
 		}
 	}

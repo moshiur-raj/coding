@@ -38,14 +38,12 @@ static void check_args(int argc, char *argv[])
 		fprintf(stderr, "ARGUMENT ERROR: There Should Be %i Arguments."
 		        " args: nthead nmolecules nrender dt time_limit fps boxsize.x boxsize.y boxsize.z"
 		        " relative_mass radius temperature.", NUM_ARG);
-		fflush(stderr);
 		exit(EXIT_FAILURE);
 	}
 
 	if (!args_are_numbers(argc, argv))
 	{
 		fprintf(stderr, "ARGUMENT ERROR: Please Use Decimal Numbers For Arguments.\n");
-		fflush(stderr);
 		exit(EXIT_FAILURE);
 	}
 }
@@ -55,7 +53,6 @@ void check_params(const struct SimulationParameters *restrict param)
 	if (param->nthread > param->nmolecules)
 	{
 		fprintf(stderr, "WARNING: number of tasks < number of threads\n");
-		fflush(stderr);
 		exit(EXIT_FAILURE);
 	}
 
@@ -63,7 +60,6 @@ void check_params(const struct SimulationParameters *restrict param)
 	     || param->relative_mass < 0 || param->radius < 0 || param->temperature < 0)
 	{
 		fprintf(stderr, "ERROR: use positive values");
-		fflush(stderr);
 		exit(EXIT_FAILURE);
 	}
 
@@ -72,7 +68,13 @@ void check_params(const struct SimulationParameters *restrict param)
 	     || param->boxsize.z < min_box_dim)
 	{
 		fprintf(stderr, "ERROR: boxsize too small.\n");
-		fflush(stderr);
+		exit(EXIT_FAILURE);
+	}
+
+	if (param->nmolecules*M_PI*param->radius*param->radius
+	    > param->boxsize.x*param->boxsize.y*param->boxsize.z / 2)
+	{
+		fprintf(stderr, "ERROR: not enough space for the molecules\n");
 		exit(EXIT_FAILURE);
 	}
 }
@@ -97,8 +99,10 @@ void parse_args(int argc, char *argv[], struct SimulationParameters *restrict pa
 	param->radius_squared = param->radius*param->radius;
 
 	double dspeed         = sqrt(3*8.314*param->temperature / param->relative_mass)*1e-3;
-	param->mca_factor     = dspeed/param->radius/param->dt;
+	param->mca_factor     = 5*sqrt(2*8.314*param->temperature / param->relative_mass)/param->radius;
 	param->wca_factor     = dspeed/param->dt;
+	// debug
+	param->compare_radius = param->mca_factor/param->radius;
 
 	// Make the number of molecules even. This is done so it is easier to maintain conservation
 	// of momentum when generating velocities.

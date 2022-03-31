@@ -15,30 +15,37 @@ struct PthreadFunctionArg
 
 static inline void wall_collision(int i, const struct SimulationParameters *restrict param)
 {
+	// debug
 	if (param->position[i].x < param->radius)
 	{
-		param->acceleration[i].x += param->wca_factor;
+		param->velocity[i].x *= -1;
+		// param->acceleration[i].x += param->wca_factor;
 	}
 	else if (param->position[i].y < param->radius)
 	{
-		param->acceleration[i].y += param->wca_factor;
+		param->velocity[i].y *= -1;
+		// param->acceleration[i].y += param->wca_factor;
 	}
 	else if (param->boxsize.x - param->position[i].x < param->radius)
 	{
-		param->acceleration[i].x -= param->wca_factor;
+		param->velocity[i].x *= -1;
+		// param->acceleration[i].x -= param->wca_factor;
 	}
 	else if (param->boxsize.y - param->position[i].y < param->radius)
 	{
-		param->acceleration[i].y -= param->wca_factor;
+		param->velocity[i].y *= -1;
+		// param->acceleration[i].y -= param->wca_factor;
 	}
 	#ifdef VEC3D
 		else if (param->position[i].z < param->radius)
 		{
-			param->acceleration[i].z += param->wca_factor;
+			param->velocity[i].z *= -1;
+			// param->acceleration[i].z += param->wca_factor;
 		}
 		else if (param->boxsize.z - param->position[i].z < param->radius)
 		{
-			param->acceleration[i].z -= param->wca_factor;
+			param->velocity[i].z *= -1;
+			// param->acceleration[i].z -= param->wca_factor;
 		}
 	#endif
 }
@@ -65,12 +72,17 @@ static inline void molecular_collision(int i, const struct SimulationParameters 
 			dr.z = param->position[i].z - param->position[j].z;
 		#endif
 
-		if (magnitude_squared(&dr) < param->radius_squared)
+		// debug
+		double accel = param->mca_factor*pow(dr.x*dr.x + dr.y*dr.y, -0.5);
+		if (accel > param->compare_radius)
 		{
-			param->acceleration[i].x += param->mca_factor * dr.x;
-			param->acceleration[i].y += param->mca_factor * dr.y;
+			// param->acceleration[i].x += param->mca_factor * dr.x;
+			param->acceleration[i].x += accel * dr.x;
+			// param->acceleration[i].y += param->mca_factor * dr.y;
+			param->acceleration[i].y += accel * dr.y;
 			#ifdef VEC3D
-				param->acceleration[i].z += param->mca_factor * dr.z;
+				// param->acceleration[i].z += param->mca_factor * dr.z;
+				param->acceleration[i].z += accel * dr.z;
 			#endif
 
 			param->acceleration[j].x -= param->acceleration[i].x;
