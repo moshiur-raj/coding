@@ -1,0 +1,5 @@
+1. Compare single threaded and multi threaded results. Is the multi threaded one correct?
+1. Check if making things single threaded / inlining functions makes things faster for low num_molecules.
+2. make initial-condition-generator multithreaded.
+3. fix the issue with molecules going out of bounds.
+4. fix the initial position generator.

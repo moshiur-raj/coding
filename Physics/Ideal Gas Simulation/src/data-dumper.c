@@ -28,17 +28,23 @@ void dump_data(const vector_t *restrict position, int nrender)
 	#endif
 }
 
+// debug
 void dump_statistical_data(double t, const vector_t *restrict velocity, int nmolecules)
 {
-	double rms_squared = 0;
+	double rms_speed_squared = 0;
 	vector_t dmomentum = {.x = 0, .y = 0};
 	for(int i = 0; i < nmolecules; ++i)
 	{
-		rms_squared += velocity[i].x*velocity[i].x + velocity[i].y*velocity[i].y;
+		rms_speed_squared += velocity[i].x*velocity[i].x + velocity[i].y*velocity[i].y;
 		dmomentum.x += velocity[i].x;
 		dmomentum.y += velocity[i].y;
 	}
-	rms_squared /= nmolecules;
+	rms_speed_squared /= nmolecules;
 	printf("TIME ==> %7.3lf\tRMS_SQUARED ==> %7.3lf\tMOMENTUM_X ==> %7.3lf\tMOMENTUM_Y ==> %7.3lf\n",
-	       t, rms_squared, dmomentum.x, dmomentum.y);
+	       t, rms_speed_squared, dmomentum.x, dmomentum.y);
+	// for(int i = 0; i < nmolecules; ++i)
+	// {
+	// 	rms_speed_squared = velocity[i].x*velocity[i].x + velocity[i].y*velocity[i].y;
+	// 	fprintf(stderr, "rms speed squared for %ith molecule = %lf\n", i, rms_speed_squared);
+	// }
 }

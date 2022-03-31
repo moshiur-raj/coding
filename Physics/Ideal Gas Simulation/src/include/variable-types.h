@@ -29,6 +29,8 @@ struct SimulationParameters
 	// wca_factor = wall collision acceleration factor
 	// mca_factor = molecular collision acceleration factor
 	double radius_squared, wca_factor, mca_factor;
+	// debug
+	double compare_radius;
 
 	vector_t *restrict position, *restrict velocity, *restrict acceleration;
 };
