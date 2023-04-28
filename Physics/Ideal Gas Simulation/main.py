@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from scipy.special import gamma
+from math import gamma
 import matplotlib.pyplot as plt
 from matplotlib import animation
 import scienceplots
@@ -10,19 +10,19 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 float_dtype = torch.get_default_dtype()
 
 n_dim = 3
-n_particles = int(5e3)
+n_particles = int(1e4)
 l = 1
 v_rms = 500
-radius = 3e-3
+radius = 5e-3
 dt = 1e-5
 
-n_iter = int(5e2)
+n_iter = int(1e3)
 n_points = int(1e3)
 v_max_plot = 4*v_rms
 hist_factor = 1e3
-n_bins = 64
+n_bins = 80
 
-fps = 30
+fps = 60
 aspect_ratio = (16, 9)
 dpi = 120
 
@@ -82,8 +82,8 @@ rs, vs = motion(r, v, n_dim, radius, n_particles, n_iter, dt, device)
 
 
 v = np.linspace(0, v_max_plot, n_points)
-a = (2/n_dim)**(n_dim/2) / v_rms**n_dim * 2 / gamma(n_dim / 2)
-b = 2 / v_rms**2 / n_dim
+a = (n_dim / 2)**(n_dim / 2) / v_rms**n_dim * 2 / gamma(n_dim / 2)
+b = n_dim / 2 / v_rms**2
 fv = a * v**(n_dim - 1) * np.exp(-b*v**2)
 fv *= hist_factor
 
@@ -102,7 +102,7 @@ def init_fig():
     ax[1].legend()
 
     global red, blue, bins, patches
-    markersize = 2 * radius * ax[0].get_window_extent().width * 72./fig.dpi
+    markersize = 1/4 * 2*radius/l * ax[0].get_window_extent().width * 72./fig.dpi
     red, = ax[0].plot([], [], marker='o', linestyle='', color='r', markersize=markersize)
     blue, = ax[0].plot([], [], marker='o', linestyle='', color='royalblue', markersize=markersize)
 
@@ -125,4 +125,6 @@ def animate(i):
 
 ani = animation.FuncAnimation(fig, animate, init_func=init_fig, frames=n_iter,
                               interval=round(1000/fps), blit=True)
-ani.save('animation.mkv', writer='ffmpeg', fps=fps, dpi=dpi)
+writer = animation.FFMpegWriter(fps=fps, codec="hevc_vaapi", extra_args=["-vaapi_device", "/dev/dri/renderD128", "-vf",
+                                "format=nv12,hwupload"])
+ani.save('animation.mkv', writer=writer, dpi=dpi)
