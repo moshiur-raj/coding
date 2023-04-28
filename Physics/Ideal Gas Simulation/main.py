@@ -40,7 +40,7 @@ aspect_ratio = (16, 9)
 dpi = 120
 
 # array for storing position and velocity
-r = torch.rand((n_dim, n_particles), device=device, dtype=float_dtype)
+r = torch.rand((n_dim, n_particles), device=device, dtype=float_dtype)*l
 v = torch.zeros((n_dim, n_particles), device=device, dtype=float_dtype) 
 
 # determining if the particle is on the left side of the box or the right side wrt x axis
