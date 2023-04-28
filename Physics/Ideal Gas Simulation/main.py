@@ -3,45 +3,64 @@ import numpy as np
 from math import gamma
 import matplotlib.pyplot as plt
 from matplotlib import animation
+# for better looking graphs
 import scienceplots
 plt.style.use(['science', 'notebook'])
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 float_dtype = torch.get_default_dtype()
 
+# dimension of the box containing the gas particles
 n_dim = 3
+# number of particles
 n_particles = int(1e4)
+# length of the sides of the cubic box
 l = 1
+# rms speed
 v_rms = 500
+# radius of gas particles
 radius = 5e-3
+# time interval for simulation
 dt = 1e-5
 
+# number of times position and velocity of particles will be updated
 n_iter = int(1e3)
+# number of points used to plot MB distribution
 n_points = int(1e3)
+# max value of v for plotting
 v_max_plot = 4*v_rms
+# scaling factor for y axis when plotting the probability distribution
 hist_factor = 1e3
+# number of bins to use for histogram
 n_bins = 80
 
+# parameters for rendering the video
 fps = 60
 aspect_ratio = (16, 9)
 dpi = 120
 
+# array for storing position and velocity
 r = torch.rand((n_dim, n_particles), device=device, dtype=float_dtype)
 v = torch.zeros((n_dim, n_particles), device=device, dtype=float_dtype) 
 
+# determining if the particle is on the left side of the box or the right side wrt x axis
 is_r = r[0] > 0.5*l
 is_l = r[0] <= 0.5*l
+# make particles on the left side travel to the right and vice versa
 v[0][is_r] = -v_rms
 v[0][is_l] = v_rms
+# store the array in ram
 is_r = is_r.cpu()
 is_l = is_l.cpu()
 
+# calculate square of the distance between pairs of particle
 def dist_sq_pairs(r, id_pairs):
     d_pairs = r[:, id_pairs[:, 0]] - r[:, id_pairs[:, 1]]
 
     return torch.sum(d_pairs**2, dim=0)
 
 
+# update velocity
 def compute_new_v(v1, v2, r1, r2):
     dr = r1 - r2
     v1_new = v1 - torch.sum((v1 - v2) * dr, dim=0) / torch.sum(dr**2, dim=0) * dr
@@ -50,6 +69,7 @@ def compute_new_v(v1, v2, r1, r2):
     return v1_new, v2_new
 
 
+# reflect particles if the collide with any wall
 def check_wall_collision(r, v, n_dim):
     for dim in range(0, n_dim):
         id_wall_collision = r[dim] < 0
@@ -59,15 +79,19 @@ def check_wall_collision(r, v, n_dim):
 
 
 def motion(r, v, n_dim, radius, n_particles, n_iter, dt, device):
+    # arrays for storing points for rendering the video
     rs = torch.zeros((n_iter, n_dim, n_particles),  dtype=float_dtype)
     vs = torch.zeros((n_iter, n_dim, n_particles),  dtype=float_dtype)
     rs[0] = r
     vs[0] = v
 
+    # generate all pairs of particle
     id_pairs = torch.combinations(torch.arange(n_particles), 2).to(device)
 
     for i in range(1, n_iter):
+        # check if the pairs are in collision
         id_pc = id_pairs[dist_sq_pairs(r, id_pairs) < (2*radius)**2]
+        # update the velocity of colliding particles
         v[:, id_pc[:, 0]], v[:, id_pc[:, 1]] = compute_new_v(v[:, id_pc[:, 0]], v[:, id_pc[:, 1]],
                                                              r[:, id_pc[:, 0]], r[:, id_pc[:, 1]])
         check_wall_collision(r, v, n_dim)
@@ -81,6 +105,7 @@ def motion(r, v, n_dim, radius, n_particles, n_iter, dt, device):
 rs, vs = motion(r, v, n_dim, radius, n_particles, n_iter, dt, device)
 
 
+# plot the Maxwell Boltzmann distribution
 v = np.linspace(0, v_max_plot, n_points)
 a = (n_dim / 2)**(n_dim / 2) / v_rms**n_dim * 2 / gamma(n_dim / 2)
 b = n_dim / 2 / v_rms**2
@@ -102,6 +127,7 @@ def init_fig():
     ax[1].legend()
 
     global red, blue, bins, patches
+    # set the particle size shown in animation
     markersize = 1/4 * 2*radius/l * ax[0].get_window_extent().width * 72./fig.dpi
     red, = ax[0].plot([], [], marker='o', linestyle='', color='r', markersize=markersize)
     blue, = ax[0].plot([], [], marker='o', linestyle='', color='royalblue', markersize=markersize)
@@ -125,6 +151,7 @@ def animate(i):
 
 ani = animation.FuncAnimation(fig, animate, init_func=init_fig, frames=n_iter,
                               interval=round(1000/fps), blit=True)
+# Use vaapi encoder with ffmpeg
 writer = animation.FFMpegWriter(fps=fps, codec="hevc_vaapi", extra_args=["-vaapi_device", "/dev/dri/renderD128", "-vf",
                                 "format=nv12,hwupload"])
 ani.save('animation.mkv', writer=writer, dpi=dpi)
