@@ -1,5 +1,3 @@
-#!/bin/python
-
 import subprocess
 from io import StringIO
 import numpy as np
