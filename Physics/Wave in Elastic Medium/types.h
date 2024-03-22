@@ -18,10 +18,10 @@ struct ParticleIndex
 struct Parameters
 {
 	void *position, *velocity, *neighbor, *shm;
-	Float_t *min, *max;
-	const Float_t time_limit, dt, dt_data_dump, dt_scaled;
+	Float_t *restrict min, *restrict max;
+	const Float_t time_limit, dt, fps, dt_scaled;
 	Int_t nframes, di_data_dump;
-	const int fps, ndim, ndim_ng, WhatToPlot;
+	const int ndim, ndim_ng, WhatToPlot;
 	struct ParticleCount particle_count;
 	struct ParticleIndex index;
 };

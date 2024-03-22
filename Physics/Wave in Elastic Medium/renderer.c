@@ -13,14 +13,13 @@ void render(struct Parameters param)
 	if (pid == 0)
 	{
 		int size = 64;
-		char bin_name[size], renderer_path[size], renderPositionVsTime[size], dt[size], fps[size],
+		char bin_name[size], renderer_path[size], renderPositionVsTime[size], fps[size],
 		     nframes[size], ndim[size], nparticles[size], shm_block_name[size],
 		     min[param.ndim][size], max[param.ndim][size];
 		snprintf(bin_name, size, "%s", "python");
 		snprintf(renderer_path, size, "%s", "./renderer.py");
 		snprintf(renderPositionVsTime, size, "%i", param.WhatToPlot);
-		snprintf(dt, size, "%.6le", param.dt_data_dump);
-		snprintf(fps, size, "%i", param.fps);
+		snprintf(fps, size, "%.6le", param.fps);
 		snprintf(nframes, size, "%i", param.nframes);
 		snprintf(ndim, size, "%i", param.ndim);
 		snprintf(nparticles, size, "%i", param.particle_count.plot);
@@ -31,18 +30,17 @@ void render(struct Parameters param)
 			snprintf(max[i], size, "%.6le", param.max[i]);
 		}
 
-		size = 9 + 2 * param.ndim + 1;
+		size = 8 + 2 * param.ndim + 1;
 		char *argv[size];
 		argv[0] = bin_name;
 		argv[1] = renderer_path;
 		argv[2] = renderPositionVsTime;
-		argv[3] = dt;
-		argv[4] = fps;
-		argv[5] = nframes;
-		argv[6] = ndim;
-		argv[7] = nparticles;
-		argv[8] = shm_block_name;
-		for (int i = 0, j = 9; i < param.ndim; ++i)
+		argv[3] = fps;
+		argv[4] = nframes;
+		argv[5] = ndim;
+		argv[6] = nparticles;
+		argv[7] = shm_block_name;
+		for (int i = 0, j = 8; i < param.ndim; ++i)
 		{
 			argv[j++] = min[i];
 			argv[j++] = max[i];
