@@ -1,0 +1,31 @@
+<Qucs Schematic 0.0.24>
+<Properties>
+  <View=0,0,1481,800,1,0,0>
+  <Grid=10,10,0>
+  <DataSet=ac_simulation.dat>
+  <DataDisplay=ac_simulation.sch>
+  <OpenDisplay=1>
+  <Script=ac_simulation.m>
+  <RunScript=0>
+  <showFrame=0>
+  <FrameText0=Title>
+  <FrameText1=Drawn By:>
+  <FrameText2=Date:>
+  <FrameText3=Revision:>
+</Properties>
+<Symbol>
+</Symbol>
+<Components>
+</Components>
+<Wires>
+</Wires>
+<Diagrams>
+  <Rect 140 450 240 160 3 #c0c0c0 1 00 1 0 200000 1e+06 1 0 1 2 1 -1 1 1 315 0 225 "frequency" "V_in" "">
+	<"ngspice/ac.v(v_in)@frequency" #0000ff 0 3 0 0 0>
+  </Rect>
+  <Rect 539 687 885 624 3 #c0c0c0 1 10 1 10000 1 1e+06 1 0.001 1 1 1 -1 0.2 1 315 0 225 "frequency" "V_out" "">
+	<"ngspice/ac.v(v_out)@frequency" #0000ff 0 3 0 0 0>
+  </Rect>
+</Diagrams>
+<Paintings>
+</Paintings>
