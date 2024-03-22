@@ -4,7 +4,7 @@ LIBS = -lpthread
 SRCDIR = .
 OBJDIR = ./build
 EXDIR = .
-OBJS = $(OBJDIR)/main.o $(OBJDIR)/calc.o $(OBJDIR)/pcg_basic.o
+OBJS = $(OBJDIR)/main.o $(OBJDIR)/calc.o
 
 all : calculate
 

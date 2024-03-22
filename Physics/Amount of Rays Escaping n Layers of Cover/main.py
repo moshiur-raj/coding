@@ -3,8 +3,8 @@ from io import StringIO
 import numpy as np
 import matplotlib.pyplot as plt
 
-num_layers_min = str(1)
-num_layers_max = str(5)
+num_layers_min = str(10)
+num_layers_max = str(15)
 step_for_num_layers = str(1)
 transparency_min = str(0)
 transparency_max = str(1)

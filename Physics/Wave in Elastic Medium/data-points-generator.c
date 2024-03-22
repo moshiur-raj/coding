@@ -59,17 +59,19 @@ void dump_data(struct Parameters *param)
 
 void generate_data_points(struct Parameters param)
 {
-	Float_t t = 0, threshold = param.dt_data_dump;
+	Float_t t = 0, dt_data_dump = 1/param.fps, threshold;
+	threshold = dt_data_dump;
 	dump_data(&param);
 	while (t < param.time_limit)
 	{
 		update_for_boundary(&param);
 		update_for_inside(&param);
+		t += param.dt;
+
 		if (t > threshold)
 		{
 			dump_data(&param);
-			threshold += param.dt_data_dump;
+			threshold += dt_data_dump;
 		}
-		t += param.dt;
 	}
 }
