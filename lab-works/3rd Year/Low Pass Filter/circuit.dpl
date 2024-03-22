@@ -1,0 +1,28 @@
+<Qucs Schematic 0.0.24>
+<Properties>
+  <View=0,0,1244,800,1,0,0>
+  <Grid=10,10,0>
+  <DataSet=circuit.dat>
+  <DataDisplay=circuit.sch>
+  <OpenDisplay=1>
+  <Script=circuit.m>
+  <RunScript=0>
+  <showFrame=0>
+  <FrameText0=Title>
+  <FrameText1=Drawn By:>
+  <FrameText2=Date:>
+  <FrameText3=Revision:>
+</Properties>
+<Symbol>
+</Symbol>
+<Components>
+</Components>
+<Wires>
+</Wires>
+<Diagrams>
+  <Rect 340 630 827 530 3 #c0c0c0 1 10 1 0 0.2 1 1 -0.1 0.5 1.1 1 -0.1 0.5 1.1 315 0 225 "Frequency (Hz)" "Output Voltage (V)" "">
+	<"ngspice/ac.v(pr1)@frequency" #0000ff 0 3 0 0 0>
+  </Rect>
+</Diagrams>
+<Paintings>
+</Paintings>
