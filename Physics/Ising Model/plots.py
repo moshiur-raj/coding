@@ -132,7 +132,7 @@ def animate(frame, ax, lattice, t_anim, iter):
     ax.clear()
     ax.set_xlabel(r"${T}\,/\,{T_c}$" f" ={t_anim:.2f}\t" + scientific_notation_latex(iter[frame])
                   + f" Iterations\t" r"$\langle s \rangle$"
-                  f" ={lattice[frame].sum()/lattice[frame].size:.2f}")
+                  f"={lattice[frame].sum()/lattice[frame].size:.2f}")
     img = ax.imshow(lattice[frame], interpolation='none', origin='upper', cmap=cmap, norm=norm,
                     aspect='equal')
     return img
