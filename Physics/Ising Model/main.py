@@ -31,7 +31,7 @@ save_data = True
 # Critical temperacture divided by J/k_B.
 t_c = 2/np.arcsinh(1)
 # Temperatures for plotting magnetic domains.
-# Temperatures in this program are normalized such that, beta * absolute temperature = 1/t.
+# Temperatures in this program are normalized such that, beta * J = 1/t.
 t_domain = np.array([0.01, 0.25, 0.5, 0.75, 0.9, 0.95, 1.0, 1.05, 1.1, 1.25, 1.50])*t_c
 # Temperatures for plotting thermodynamic functions. These are derived from t_domain.
 t = np.concatenate([np.linspace(t_domain[i], t_domain[i+1], 25, endpoint=False,
