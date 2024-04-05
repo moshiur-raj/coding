@@ -1,0 +1,9 @@
+magnetic_domain_1 t/t_c=0.01 s=1.00
+magnetic_domain_2 t/t_c=0.50 s=1.00
+magnetic_domain_3 t/t_c=0.95 s=0.83
+magnetic_domain_4 t/t_c=1.00 s=0.50
+magnetic_domain_5 t/t_c=1.05 s=-0.01
+magnetic_domain_6 t/t_c=1.00 s=0.00
+
+default lattice size 1000x1000
+default iteration 10billion
