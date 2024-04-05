@@ -1,0 +1,139 @@
+\documentclass[a4paper, 11pt]{article}
+
+\usepackage[a4paper, width=150mm, top=14mm, bottom=14mm, headheight=14mm]{geometry}
+
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{import}
+\usepackage{braket}
+\captionsetup{font=Large}
+
+\begin{document}
+
+\vspace*{\fill}
+\centering \Large Results from Monte Carlo simulation of the Ising model using metropolis algorithm.
+The default lattice size is $1000 \times 1000$ and the default number of iterations is
+$10$ billion, unless otherwise stated.
+\vspace*{\fill}
+\clearpage
+
+\begin{figure}[t]
+	\begin{subfigure}{\textwidth}
+		\centering
+		\def\svgwidth{\columnwidth}
+		\import{./figures/}{convergence_iterations.pdf_tex}
+		\caption{Convergence for Infinite Iterations.}
+		\vspace{1.5em}
+	\end{subfigure}
+	\vfill
+	\begin{subfigure}{\textwidth}
+		\centering
+		\def\svgwidth{\columnwidth}
+		\import{./figures/}{convergence_lattice_size.pdf_tex}
+		\caption{\centering Convergence for Infinite Lattice (fluctuations decrease for bigger
+		         lattice).}
+		\vspace{1em}
+	\end{subfigure}
+	\caption{Convergence of Spontaneous Magnetization.}
+\end{figure}
+
+\begin{figure}[t]
+	\begin{subfigure}{\textwidth}
+		\centering
+		\def\svgwidth{\columnwidth}
+		\import{./figures/}{magnetization_1billion_iterations.pdf_tex}
+		\caption{1 billion Iterations}
+		\vspace{1.5em}
+	\end{subfigure}
+	\vfill
+	\begin{subfigure}{\textwidth}
+		\centering
+		\def\svgwidth{\columnwidth}
+		\import{./figures/}{magnetization.pdf_tex}
+		\caption{10 billion Iterations}
+		\vspace{1em}
+	\end{subfigure}
+	\caption{Convergence of Ensemble Average.}
+\end{figure}
+
+\begin{figure}[t]
+	\begin{subfigure}{0.485\textwidth}
+		\centering
+		\def\svgwidth{\columnwidth}
+		\import{./figures}{magnetic_domain_1.pdf_tex}
+		\caption{$T/T_c = 0.01 \hspace{1em} \braket{s} = 1.00$}
+		\vspace{1em}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}{0.485\textwidth}
+		\centering
+		\def\svgwidth{\columnwidth}
+		\import{./figures}{magnetic_domain_2.pdf_tex}
+		\caption{$T/T_c = 0.50 \hspace{1em} \braket{s} = 1.00$}
+		\vspace{1em}
+	\end{subfigure}
+	\vfill
+	\begin{subfigure}{0.485\textwidth}
+		\centering
+		\def\svgwidth{\columnwidth}
+		\import{./figures}{magnetic_domain_3.pdf_tex}
+		\caption{$T/T_c = 0.95 \hspace{1em} \braket{s} = 0.83$}
+		\vspace{1em}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}{0.485\textwidth}
+		\centering
+		\def\svgwidth{\columnwidth}
+		\import{./figures}{magnetic_domain_4.pdf_tex}
+		\caption{$T/T_c = 1.00 \hspace{1em} \braket{s} = 0.50$}
+		\vspace{1em}
+	\end{subfigure}
+	\vfill
+	\begin{subfigure}{0.485\textwidth}
+		\centering
+		\def\svgwidth{\columnwidth}
+		\import{./figures}{magnetic_domain_5.pdf_tex}
+		\caption{$T/T_c = 1.05 \hspace{1em} \braket{s} = -0.01$}
+		\vspace{1em}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}{0.485\textwidth}
+		\centering
+		\def\svgwidth{\columnwidth}
+		\import{./figures}{magnetic_domain_6.pdf_tex}
+		\caption{$T/T_c = 1.50 \hspace{1em} \braket{s} = 0.00$}
+		\vspace{1em}
+	\end{subfigure}
+	\caption{\centering Magnetic Domains at Different Temperatures (black refers to up spin and
+	         white refers to down spin).}
+\end{figure}
+
+\begin{figure}[t]
+	\begin{subfigure}{\textwidth}
+		\centering
+		\def\svgwidth{\columnwidth}
+		\import{./figures/}{thermodynamic_functions.pdf_tex}
+		\caption{Average Energy and Heat Capacity in Absence of External Magnetic Field.}
+		\vspace{1.5em}
+	\end{subfigure}
+	\vfill
+	\begin{subfigure}{\textwidth}
+		\centering
+		\def\svgwidth{\columnwidth}
+		\import{./figures/}{thermodynamic_functions_for_different_h_norm.pdf_tex}
+		\caption{\centering Average Energy for Different Values of External Magnetic Field (exact
+		solution is for $h = 0$ and is almost completely overlapped by the simulated data).}
+		\vspace{1em}
+	\end{subfigure}
+	\caption{Thermodynamic Functions.}
+\end{figure}
+
+\begin{figure}[t]
+	\centering
+	\def\svgwidth{\columnwidth}
+	\import{./figures/}{magnetization_for_different_h_norm.pdf_tex}
+	\caption{\centering Magnetization for Different Magnetic Fields (It is almost unaffected for
+             $T < T_c$).}
+\end{figure}
+
+\end{document}
