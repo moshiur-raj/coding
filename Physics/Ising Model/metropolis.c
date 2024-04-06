@@ -159,6 +159,11 @@ static void *start_thread(void *argptr)
 	for (int32_t i = arg->range[0]; i < arg->range[1]; ++i)
 	{
 		// inilialize the lattice state
+		// the algorithm will converge faster for the next temp (t[i+1]) if we keep don't reseed
+		// lattice with lattice_0. however this process cannot be multithreaded in the way er are
+		// multithreading here. it will only work for each thread. also the later t's will converge
+		// much faster leading to inconsistent results. we might be able to adjust this by changing
+		// n_iter for each t[i].
 		memcpy(lattice, lattice_0, _param.n_spins*sizeof(spin_t));
 
 		// metropolis algorithm
