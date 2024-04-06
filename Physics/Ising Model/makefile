@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -I. -O3 -march=native -mtune=native -std=c17 -flto -fPIC -Wall -lpthread -lm -lgsl
+CFLAGS = -I. -O3 -march=native -mtune=native -std=c17 -flto -fpic -Wall -lpthread -lm -lgsl
 
 libising.so: ./*.c ./*.h
 	$(CC) ./*.c $(CFLAGS) -shared -o ./libising.so
