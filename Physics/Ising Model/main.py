@@ -135,7 +135,10 @@ ptr.s_f_i = ising.get_pointer(s_f_i)
 ptr.s_f_l = ising.get_pointer(s_f_l)
 
 # Pass the arguments to the C function and start the algorithm
-ising.start_simulation(param, ptr)
+res = ising.start_simulation(param, ptr)
+if res != 0:
+    print(f"C function returned {res}")
+    exit(1)
 
 # Check if figures directory exists
 if not os.path.exists("./figures"):
