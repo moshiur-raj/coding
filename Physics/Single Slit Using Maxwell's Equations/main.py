@@ -101,9 +101,9 @@ def calc_intensity(Ey: jnp.ndarray, Bz: jnp.ndarray) -> jnp.ndarray:
 wavelength = 1e-6
 a = 3 * wavelength
 D = 25 * wavelength
-dh = wavelength / 40
+dh = wavelength / 50
 y_max = (1.5**2 - 1)**.5 * D
-dt = dh / c / 20
+dt = dh / c / 10
 n_iter = int(2 * D / c / dt)
 
 video_len = 10
@@ -140,7 +140,7 @@ for i in tqdm(range(n_iter)):
         intensity += 1/n_avg * calc_intensity(Ey[starty:stopy, stopx], Bz[starty:stopy, stopx])
 
 jnp.save('intensity', intensity)
-jnp.save('energy_density_list', energy_density_list)
+# jnp.save('energy_density_list', energy_density_list)
 
 # writer = animation.FFMpegWriter(fps=fps, codec='libx264')
 writer = animation.FFMpegWriter(
@@ -164,11 +164,14 @@ ax.set_ylabel(r'$y \, / \, \lambda$')
 ax.axvline(x=0, ymax=.5 - a/2/y_max, linewidth=1.5, color='black')
 ax.axvline(x=0, ymin=.5 + a/2/y_max, linewidth=1.5, color='black')
 
+u_ref = max(float(u.max()) for u in energy_density_list)
 u = energy_density_list[0]
-im = ax.imshow(u / u.max(), extent=(*ax.get_xlim(), *ax.get_ylim()), cmap='Oranges', vmin=0, vmax=1)
+im = ax.imshow( u / u_ref,
+               extent=(*ax.get_xlim(), *ax.get_ylim()), cmap='Oranges',
+               norm=colors.PowerNorm(gamma=0.3, vmin=0, vmax=1))
 
 def animate(u):
-    im.set_data(u / u.max())
+    im.set_data(u / u_ref)
     return im,
 
 ani = animation.FuncAnimation(fig, animate, frames=energy_density_list, interval=1000/fps, blit=True)
@@ -184,27 +187,20 @@ ax.set_xlabel(r'$x \, / \, \lambda$')
 ax.set_ylabel(r'$y \, / \, \lambda$')
 
 cutoff_t = int(D / 2 / c / dt / step)
+u_ref = max(float(u.max()) for u in energy_density_list[cutoff_t:])
 u = energy_density_list[cutoff_t]
 cutoff_x = u.shape[1] // 2
 u = u[:, cutoff_x:]
-bounds = jnp.linspace(0, 1, 1000)
-im = ax.imshow(
-        u / u.max(),
-        extent=(*ax.get_xlim(), *ax.get_ylim()),
-        cmap='Oranges',
-        # vmin=0,
-        # vmax=1,
-        # norm=colors.LogNorm(),
-        norm=colors.BoundaryNorm(boundaries=bounds, ncolors=bounds.size),
-        )
+im = ax.imshow(u / u_ref, extent=(*ax.get_xlim(), *ax.get_ylim()), cmap='Oranges',
+               norm=colors.LogNorm(vmin=1e-4, vmax=1))
 
 def animate(u):
     u = u[:, cutoff_x:]
-    im.set_data(u / u.max())
+    im.set_data(u / u_ref)
     return im,
 
 ani = animation.FuncAnimation(fig, animate, frames=energy_density_list[cutoff_t: ],
-                              interval=1000/fps, blit=False)
+                              interval=1000/fps, blit=True)
 
 ani.save('animation2.mkv', writer=writer, dpi=600)
 # %% -----------------------------------------------------------------------------------------------
@@ -216,15 +212,15 @@ ax.set_ylabel(r'$\mathtt{I} \, / \, \mathtt{I}_0$')
 
 y = jnp.arange(-y_max, y_max + dh/2, dh)
 y = y[starty:stopy]
+step = y.size // 50
 
 r = jnp.sqrt(D**2 + y**2)
 sin_theta = y / r
 cos_theta = D / r
-# jnp.sinc(x) = sin(pi x)/(pi x), so this is (sin(beta)/beta)^2 with beta = pi a sin(theta)/lambda
 intensity_predicted = jnp.sinc(a / wavelength * sin_theta)**2 * cos_theta**2
 intensity_predicted /= intensity_predicted.max()
 
-ax.plot(y / wavelength, intensity / intensity.max(), label='Simulated')
+ax.plot(y[::step] / wavelength, intensity[::step] / intensity.max(), '.', label='Simulated')
 ax.plot(y / wavelength, intensity_predicted, label='Predicted')
 
 ax.legend()
