@@ -7,13 +7,37 @@ from matplotlib import animation, colors
 
 jax.config.update('jax_enable_x64', True)
 
-def apply_boundary_cond(
-        x: jnp.ndarray,
-        boundary: tuple[jnp.ndarray, int],
+def apply_electric_boundary_cond(
+        Ex: jnp.ndarray,
+        Ey: jnp.ndarray,
+        slit_inner: tuple[jnp.ndarray, int],
+        ) -> tuple[jnp.ndarray, jnp.ndarray]:
+
+    rows, col = slit_inner
+
+    Ex = Ex.at[rows, col].set(0)
+    Ex = Ex.at[0, :].set(0)
+    Ex = Ex.at[-1, :].set(0)
+
+    Ey = Ey.at[rows, col].set(0)
+    Ey = Ey.at[rows, col - 1].set(0)
+    Ey = Ey.at[rows, col + 1].set(0)
+    Ey = Ey.at[:, 0].set(0)
+    Ey = Ey.at[:, -1].set(0)
+
+    return Ex, Ey
+
+def apply_magnetic_boundary_cond(
+        Bz: jnp.ndarray,
+        slit_inner: tuple[jnp.ndarray, int],
         ) -> jnp.ndarray:
 
-    rows, col = boundary
-    return x.at[rows, col].set(0)
+    rows, col = slit_inner
+
+    Bz = Bz.at[rows, col].set(0)
+
+    return Bz
+
 
 def gen_initial_cond(
         D: float,
@@ -30,7 +54,7 @@ def gen_initial_cond(
     slit_index_x = int((x.size - 1) * 4/7)
     n = int( (y.size - a / dy - 1) / 2 )
     slit_index_y = jnp.concatenate([jnp.arange(n), jnp.arange(y.size - n, y.size)])
-    boundary = (slit_index_y, slit_index_x)
+    slit_inner = (slit_index_y, slit_index_x)
 
     x, y = jnp.meshgrid(x, y)
     k = 2 * jnp.pi / wavelength
@@ -43,7 +67,7 @@ def gen_initial_cond(
 
     Ex = jnp.zeros(Ey.shape)
 
-    return Ex, Ey, Bz, boundary
+    return Ex, Ey, Bz, slit_inner
 
 def ddx(x: jnp.ndarray, dx: float) -> jnp.ndarray:
     x_padded = jnp.pad(x, ((0, 0), (1, 1)))
@@ -66,13 +90,14 @@ def iterate(
         dx: float,
         dy: float,
         dt: float,
-        boundary: tuple[jnp.ndarray, int],
+        slit_inner: tuple[jnp.ndarray, int],
         ) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
 
     Bz += dBz
-    Ex = apply_boundary_cond(Ex + c**2 * ddy(Bz, dy) * dt, boundary)
-    Ey = apply_boundary_cond(Ey - c**2 * ddx(Bz, dx) * dt, boundary)
-    dBz = apply_boundary_cond(dt / 2 * (ddy(Ex, dy) - ddx(Ey, dx)), boundary)
+    Ex = Ex + c**2 * ddy(Bz, dy) * dt
+    Ey = Ey - c**2 * ddx(Bz, dx) * dt
+    Ex, Ey = apply_electric_boundary_cond(Ex, Ey, slit_inner)
+    dBz = apply_magnetic_boundary_cond(dt / 2 * (ddy(Ex, dy) - ddx(Ey, dx)), slit_inner)
     Bz += dBz
 
     return Ex, Ey, Bz, dBz
@@ -113,8 +138,8 @@ step = max(n_iter // n_frames, 1)
 poynting_vector_list = []
 energy_density_list = []
 
-Ex, Ey, Bz, boundary = gen_initial_cond(D=D, y_max=y_max, dx=dh, dy=dh, wavelength=wavelength, a=a)
-dBz = apply_boundary_cond(dt / 2 * (ddy(Ex, dy=dh) - ddx(Ey, dx=dh)), boundary)
+Ex, Ey, Bz, slit_inner = gen_initial_cond(D=D, y_max=y_max, dx=dh, dy=dh, wavelength=wavelength, a=a)
+dBz = apply_magnetic_boundary_cond(dt / 2 * (ddy(Ex, dy=dh) - ddx(Ey, dx=dh)), slit_inner)
 
 density = 1000
 ny, nx = Ex.shape 
@@ -129,7 +154,7 @@ stopy = nrows - starty
 n_avg = int(10 * wavelength / c / dt)
 intensity = jnp.zeros(Ex.shape[0])
 for i in tqdm(range(n_iter)):
-    Ex, Ey, Bz, dBz = iterate(Ex=Ex, Ey=Ey, Bz=Bz, dBz=dBz, dx=dh, dy=dh, dt=dt, boundary=boundary)
+    Ex, Ey, Bz, dBz = iterate(Ex=Ex, Ey=Ey, Bz=Bz, dBz=dBz, dx=dh, dy=dh, dt=dt, slit_inner=slit_inner)
     if i % step == 0:
         Ex_ = Ex[starty:stopy:ny, startx:stopx:nx]
         Ey_ = Ey[starty:stopy:ny, startx:stopx:nx]
