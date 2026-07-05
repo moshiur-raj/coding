@@ -14,38 +14,42 @@ def apply_boundary_cond(
 
     rows, col = slit_inner
 
-    psi = psi.at[rows, col - 1].set(0)
-    psi = psi.at[rows, col].set(0)
-    psi = psi.at[rows, col + 1].set(0)
+    psi = psi.at[:, rows, col - 1].set(0)
+    psi = psi.at[:, rows, col].set(0)
+    psi = psi.at[:, rows, col + 1].set(0)
 
     return psi
 
-def ddx(x: jnp.ndarray, dx: float) -> jnp.ndarray:
-    x_padded = jnp.pad(x, ((0, 0), (1, 1)))
-    delta_x = x_padded[:, 2:] - x_padded[:, :-2]
+def ddx(psi: jnp.ndarray, dx: float) -> jnp.ndarray:
+    psi = jnp.atleast_3d(psi)
+    psi_pad = jnp.pad(psi, ((0, 0), (0, 0), (1, 1)))
+    delta_x = psi_pad[:, :, 2:] - psi_pad[:, :, :-2]
 
     return delta_x / (2 * dx)
 
-def ddy(x: jnp.ndarray, dy: float) -> jnp.ndarray:
-    x_padded = jnp.pad(x, ((1, 1), (0, 0)))
-    delta_x = x_padded[:-2] - x_padded[2:]
+def ddy(psi: jnp.ndarray, dy: float) -> jnp.ndarray:
+    psi = jnp.atleast_3d(psi)
+    psi_pad = jnp.pad(psi, ((0, 0), (1, 1), (0, 0)))
+    delta_x = psi_pad[:, :-2] - psi_pad[:, 2:]
 
     return delta_x / (2 * dy)
 
 def d2dx2(psi: jnp.ndarray, dx: float) -> jnp.ndarray:
-    psi_pad = jnp.pad(psi, ((0, 0), (1, 1)))
-    delta = psi_pad[:, 2:] - 2 * psi_pad[:, 1:-1] + psi_pad[:, :-2]
+    psi_pad = jnp.pad(psi, ((0, 0), (0, 0), (1, 1)))
+    delta = psi_pad[:, :, 2:] - 2 * psi_pad[:, :, 1:-1] + psi_pad[:, :, :-2]
 
     return delta / dx**2
 
 def d2dy2(psi: jnp.ndarray, dy: float) -> jnp.ndarray:
-    psi_pad = jnp.pad(psi, ((1, 1), (0, 0)))
-    delta = psi_pad[:-2] - 2 * psi_pad[1:-1] + psi_pad[2:]
+    psi_pad = jnp.pad(psi, ((0, 0), (1, 1), (0, 0)))
+    delta = psi_pad[:, :-2] - 2 * psi_pad[:, 1:-1] + psi_pad[:, 2:]
 
     return delta / dy**2
 
 def ddt(psi: jnp.ndarray, dx: float, dy: float) -> jnp.ndarray:
-    return 1j * hbar / 2 / m_e * (d2dx2(psi, dx) + d2dy2(psi, dy))
+    dpsi_dt = hbar / 2 / m_e * (d2dx2(psi, dx) + d2dy2(psi, dy))
+
+    return jnp.stack([-dpsi_dt[1], dpsi_dt[0]])
 
 def gen_initial_cond(
         D: float,
@@ -82,13 +86,16 @@ def gen_initial_cond(
     x_back  = -2 * D + 3 * wavelength
     f = 0.25 * (1 + jnp.tanh((x - x_back) / w)) * (1 - jnp.tanh((x - x_front) / w))
 
-    psi = jnp.cos(ky * y) * jnp.exp(1j * kx * x) * f
+    psi_prev = jnp.stack([
+        jnp.cos(ky * y) * jnp.cos(kx * x) * f,
+        jnp.cos(ky * y) * jnp.sin(kx * x) * f,
+        ])
 
-    ddt_psi = ddt(psi, dx, dy)
-    psi_next = psi + ddt_psi * dt + ddt(ddt_psi, dx, dy) * dt**2 / 2
-    psi_next = apply_boundary_cond(psi_next, slit_inner)
+    ddt_psi = ddt(psi_prev, dx, dy)
+    psi = psi_prev + ddt_psi * dt + ddt(ddt_psi, dx, dy) * dt**2 / 2
+    psi = apply_boundary_cond(psi, slit_inner)
 
-    return psi_next, psi, slit_inner
+    return psi, psi_prev, slit_inner
 
 @jax.jit(donate_argnames=("psi", "psi_prev"))
 def iterate(
@@ -107,8 +114,8 @@ def iterate(
 
 @jax.jit
 def calc_prob_current(psi: jnp.ndarray, dx: float, dy: float) -> tuple[jnp.ndarray, jnp.ndarray]:
-    real = psi.real
-    imag = psi.imag
+    real = psi[0]
+    imag = psi[1]
     jx = hbar / m_e * (-imag * ddx(real, dx) + real * ddx(imag, dx))
     jy = hbar / m_e * (-imag * ddy(real, dy) + real * ddy(imag, dy))
 
@@ -116,12 +123,12 @@ def calc_prob_current(psi: jnp.ndarray, dx: float, dy: float) -> tuple[jnp.ndarr
 
 @jax.jit
 def calc_prob_density(psi: jnp.ndarray) -> jnp.ndarray:
-    return (psi * psi.conj()).real
+    return psi[0]**2 + psi[1]**2
 
 @jax.jit
 def calc_intensity(psi: jnp.ndarray, dx: float) -> jnp.ndarray:
-    real = psi.real
-    imag = psi.imag
+    real = psi[0]
+    imag = psi[1]
     jx = hbar / m_e * (-imag * ddx(real, dx) + real * ddx(imag, dx))
 
     return jx
@@ -146,17 +153,17 @@ prob_density_list = []
 psi, psi_prev, slit_inner = gen_initial_cond(D=D, y_max=y_max, dx=dh, dy=dh, dt=dt,
                                              wavelength=wavelength, a=a)
 density = 1000
-ny, nx = psi.shape 
+ny, nx = psi[0].shape 
 ny = max(ny // density, 1)
 nx = max(nx // density, 1)
-nrows, ncols = psi.shape
+nrows, ncols = psi[0].shape
 startx = int(ncols * 2/7)
 stopx = ncols - int(ncols * 1/7)
 starty = 0
 stopy = nrows - starty
 
 n_avg = int(10 * wavelength / v / dt)
-intensity = jnp.zeros(psi.shape[0])
+intensity = jnp.zeros(psi.shape[1])
 for i in tqdm(range(n_iter)):
     psi, psi_prev = iterate(psi, psi_prev, dx=dh, dy=dh, dt=dt, slit_inner=slit_inner)
     if i % step == 0:
