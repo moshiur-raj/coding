@@ -15,18 +15,15 @@ def apply_electric_boundary_cond(
 
     rows, col = slit_inner
 
+    Ex = Ex.at[rows, col].set(0)
     Ex = Ex.at[0, :].set(0)
     Ex = Ex.at[-1, :].set(0)
-    Ex = Ex.at[:, -1].set(0)
-    Ex = Ex.at[rows, col].set(0)
-    Ex = Ex.at[rows, col - 1].set(0)
 
     Ey = Ey.at[rows, col].set(0)
     Ey = Ey.at[rows, col - 1].set(0)
     Ey = Ey.at[rows, col + 1].set(0)
     Ey = Ey.at[:, 0].set(0)
     Ey = Ey.at[:, -1].set(0)
-    Ey = Ey.at[0, :].set(0)
 
     return Ex, Ey
 
@@ -36,11 +33,8 @@ def apply_magnetic_boundary_cond(
         ) -> jnp.ndarray:
 
     rows, col = slit_inner
-    Bz = Bz.at[rows, col].set(0)
-    Bz = Bz.at[rows, col - 1].set(0)
 
-    Bz = Bz.at[0, :].set(0)
-    Bz = Bz.at[:, -1].set(0)
+    Bz = Bz.at[rows, col].set(0)
 
     return Bz
 
@@ -55,7 +49,7 @@ def gen_initial_cond(
         ) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, tuple[jnp.ndarray, int]]:
 
     x = jnp.arange(-2 * D, 1.5 * D + dx/2, dx)
-    y = jnp.arange(y_max + dy/2, -y_max, -dy)
+    y = jnp.arange(y_max, -y_max - dy/2, -dy)
     
     slit_index_x = int((x.size - 1) * 4/7)
     n = int( (y.size - a / dy - 1) / 2 )
@@ -65,43 +59,27 @@ def gen_initial_cond(
     x, y = jnp.meshgrid(x, y)
     k = 2 * jnp.pi / wavelength
     Ey = jnp.sin(k * x)
-    Bz = 1 / c * jnp.sin(k * (x + dx / 2))
+    Bz = Ey / c
 
     cutoff_index = int( (1.5 * D // wavelength) * wavelength / dx )
     Ey = Ey.at[:, cutoff_index:].set(0)
     Bz = Bz.at[:, cutoff_index:].set(0)
 
-    Ey = Ey.at[0, :].set(0)
-    Bz = Bz.at[0, :].set(0)
-    Bz = Bz.at[:, -1].set(0)
-
     Ex = jnp.zeros(Ey.shape)
 
     return Ex, Ey, Bz, slit_inner
 
-def ddx_f(x: jnp.ndarray, dx: float) -> jnp.ndarray:
-    x_padded = jnp.pad(x, ((0, 0), (0, 1)))
-    delta_x = x_padded[:, 1:] - x_padded[:, :-1]
+def ddx(x: jnp.ndarray, dx: float) -> jnp.ndarray:
+    x_padded = jnp.pad(x, ((0, 0), (1, 1)))
+    delta_x = x_padded[:, 2:] - x_padded[:, :-2]
 
-    return delta_x / dx
+    return delta_x / (2 * dx)
 
-def ddx_b(x: jnp.ndarray, dx: float) -> jnp.ndarray:
-    x_padded = jnp.pad(x, ((0, 0), (1, 0)))
-    delta_x = x_padded[:, 1:] - x_padded[:, :-1]
+def ddy(x: jnp.ndarray, dy: float) -> jnp.ndarray:
+    x_padded = jnp.pad(x, ((1, 1), (0, 0)))
+    delta_x = x_padded[:-2] - x_padded[2:]
 
-    return delta_x / dx
-
-def ddy_f(x: jnp.ndarray, dy: float) -> jnp.ndarray:
-    x_padded = jnp.pad(x, ((1, 0), (0, 0)))
-    delta_x = x_padded[:-1] - x_padded[1:]
-
-    return delta_x / dy
-
-def ddy_b(x: jnp.ndarray, dy: float) -> jnp.ndarray:
-    x_padded = jnp.pad(x, ((0, 1), (0, 0)))
-    delta_x = x_padded[:-1] - x_padded[1:]
-
-    return delta_x / dy
+    return delta_x / (2 * dy)
 
 @jax.jit(donate_argnames=("Ex", "Ey", "Bz", "dBz"))
 def iterate(
@@ -116,10 +94,10 @@ def iterate(
         ) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
 
     Bz += dBz
-    Ex = Ex + c**2 * ddy_b(Bz, dy) * dt
-    Ey = Ey - c**2 * ddx_b(Bz, dx) * dt
+    Ex = Ex + c**2 * ddy(Bz, dy) * dt
+    Ey = Ey - c**2 * ddx(Bz, dx) * dt
     Ex, Ey = apply_electric_boundary_cond(Ex, Ey, slit_inner)
-    dBz = apply_magnetic_boundary_cond(dt / 2 * (ddy_f(Ex, dy) - ddx_f(Ey, dx)), slit_inner)
+    dBz = apply_magnetic_boundary_cond(dt / 2 * (ddy(Ex, dy) - ddx(Ey, dx)), slit_inner)
     Bz += dBz
 
     return Ex, Ey, Bz, dBz
@@ -161,7 +139,7 @@ poynting_vector_list = []
 energy_density_list = []
 
 Ex, Ey, Bz, slit_inner = gen_initial_cond(D=D, y_max=y_max, dx=dh, dy=dh, wavelength=wavelength, a=a)
-dBz = apply_magnetic_boundary_cond(dt / 2 * (ddy_f(Ex, dy=dh) - ddx_f(Ey, dx=dh)), slit_inner)
+dBz = apply_magnetic_boundary_cond(dt / 2 * (ddy(Ex, dy=dh) - ddx(Ey, dx=dh)), slit_inner)
 
 density = 1000
 ny, nx = Ex.shape 
@@ -184,11 +162,10 @@ for i in tqdm(range(n_iter)):
         # poynting_vector_list.append(poynting_vector(Ex_, Ey_, Bz_))
         energy_density_list.append(calc_energy_density(Ex_, Ey_, Bz_))
     if i >= n_iter - n_avg:
-        Bz_at_screen = 0.5 * (Bz[starty:stopy, stopx] + Bz[starty:stopy, stopx - 1])
-        intensity += 1/n_avg * calc_intensity(Ey[starty:stopy, stopx], Bz_at_screen)
+        intensity += 1/n_avg * calc_intensity(Ey[starty:stopy, stopx], Bz[starty:stopy, stopx])
 
-jnp.save('intensity_yee', intensity)
-# jnp.save('energy_density_list_yee', energy_density_list)
+jnp.save('intensity', intensity)
+# jnp.save('energy_density_list', energy_density_list)
 
 # writer = animation.FFMpegWriter(fps=fps, codec='libx264')
 writer = animation.FFMpegWriter(
@@ -208,9 +185,9 @@ fig, ax = plt.subplots()
 ax.set_xlabel(r'$y \, / \, \lambda$')
 ax.set_ylabel(r'$\mathtt{I} \, / \, \mathtt{I}_0$')
 
-y = jnp.arange(y_max + dh/2, -y_max, -dh)
+y = jnp.arange(y_max, -y_max - dh/2, -dh)
 y = y[starty:stopy]
-step = y.size // 50
+plot_step = y.size // 50
 
 r = jnp.sqrt(D**2 + y**2)
 sin_theta = y / r
@@ -218,11 +195,11 @@ cos_theta = D / r
 intensity_predicted = jnp.sinc(a / wavelength * sin_theta)**2 * cos_theta**2
 intensity_predicted /= intensity_predicted.max()
 
-ax.plot((y[::step]+dh/2) / wavelength, intensity[::step] / intensity.max(), '.', label='Simulated')
+ax.plot(y[::plot_step] / wavelength, intensity[::plot_step] / intensity.max(), '.', label='Simulated')
 ax.plot(y / wavelength, intensity_predicted, label='Predicted')
 
 ax.legend()
-fig.savefig('intensity_yee.pdf')
+fig.savefig('intensity.pdf')
 # %% -----------------------------------------------------------------------------------------------
 
 plt.close()
@@ -246,7 +223,7 @@ def animate(u):
 
 ani = animation.FuncAnimation(fig, animate, frames=energy_density_list, interval=1000/fps, blit=True)
 
-ani.save('animation1_yee.mkv', writer=writer, dpi=600)
+ani.save('animation1.mkv', writer=writer, dpi=600)
 # %% -----------------------------------------------------------------------------------------------
 
 plt.close()
@@ -272,4 +249,4 @@ def animate(u):
 ani = animation.FuncAnimation(fig, animate, frames=energy_density_list[cutoff_t: ],
                               interval=1000/fps, blit=True)
 
-ani.save('animation2_yee.mkv', writer=writer, dpi=600)
+ani.save('animation2.mkv', writer=writer, dpi=600)
