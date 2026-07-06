@@ -48,10 +48,10 @@ def gen_initial_cond(
         a: float,
         ) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, tuple[jnp.ndarray, int]]:
 
-    x = jnp.arange(-2 * D, 1.5 * D + dx/2, dx)
+    x = jnp.arange(-2 * D, 1.5 * D + 2 * wavelength + dx/2, dx)
     y = jnp.arange(y_max, -y_max - dy/2, -dy)
     
-    slit_index_x = int((x.size - 1) * 4/7)
+    slit_index_x = int(round(2 * D / dx))
     n = int( (y.size - a / dy - 1) / 2 )
     slit_index_y = jnp.concatenate([jnp.arange(n), jnp.arange(y.size - n, y.size)])
     slit_inner = (slit_index_y, slit_index_x)
@@ -81,7 +81,7 @@ def ddy(x: jnp.ndarray, dy: float) -> jnp.ndarray:
 
     return delta_x / (2 * dy)
 
-@jax.jit(donate_argnames=("Ex", "Ey", "Bz", "dBz"))
+@jax.jit(donate_argnames=("Ex", "Ey", "Bz", "dBz"), static_argnames=("dx", "dy", "dt"))
 def iterate(
         Ex: jnp.ndarray,
         Ey: jnp.ndarray,
@@ -129,7 +129,7 @@ D = 25 * wavelength
 dh = wavelength / 50
 y_max = (1.5**2 - 1)**.5 * D
 dt = dh / c / 10
-n_iter = int(2 * D / c / dt)
+n_iter = int((2 * D + 2 * wavelength) / c / dt)
 
 video_len = 10
 fps = 60
@@ -146,12 +146,12 @@ ny, nx = Ex.shape
 ny = max(ny // density, 1)
 nx = max(nx // density, 1)
 nrows, ncols = Ex.shape
-startx = int(ncols * 2/7)
-stopx = ncols - int(ncols * 1/7)
+startx = int(round(D / dh))
+stopx  = int(round(3 * D / dh))
 starty = 0
 stopy = nrows - starty
 
-n_avg = int(10 * wavelength / c / dt)
+n_avg = int(wavelength / c / dt)
 intensity = jnp.zeros(Ex.shape[0])
 for i in tqdm(range(n_iter)):
     Ex, Ey, Bz, dBz = iterate(Ex=Ex, Ey=Ey, Bz=Bz, dBz=dBz, dx=dh, dy=dh, dt=dt, slit_inner=slit_inner)
@@ -195,8 +195,8 @@ cos_theta = D / r
 intensity_predicted = jnp.sinc(a / wavelength * sin_theta)**2 * cos_theta**2
 intensity_predicted /= intensity_predicted.max()
 
-ax.plot(y[::plot_step] / wavelength, intensity[::plot_step] / intensity.max(), '.', label='Simulated')
-ax.plot(y / wavelength, intensity_predicted, label='Predicted')
+ax.plot(y / wavelength, intensity_predicted, zorder=2, label='Predicted')
+ax.plot(y[::plot_step] / wavelength, intensity[::plot_step] / intensity.max(), '.', zorder=3, label='Simulated')
 
 ax.legend()
 fig.savefig('intensity.pdf')
