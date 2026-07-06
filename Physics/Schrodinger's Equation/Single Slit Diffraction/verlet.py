@@ -48,7 +48,7 @@ def gen_initial_cond(
 
     alpha = jnp.cos(ky * y) * jnp.cos(kx * x) * f
     beta = jnp.cos(ky * y) * jnp.sin(kx * x) * f
-    z = jnp.sqrt((alpha**2 + beta**2).sum())
+    z = jnp.sqrt((alpha**2 + beta**2).sum() * dx * dy)
     alpha /= z
     beta /= z
 

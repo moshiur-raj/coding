@@ -80,7 +80,7 @@ def gen_initial_cond(
         jnp.cos(ky * y) * jnp.cos(kx * x) * f,
         jnp.cos(ky * y) * jnp.sin(kx * x) * f,
         ])
-    psi_prev /= jnp.sqrt((psi_prev[0]**2 + psi_prev[1]**2).sum())
+    psi_prev /= jnp.sqrt((psi_prev[0]**2 + psi_prev[1]**2).sum() * dx * dy)
     psi_prev = apply_boundary_cond(psi_prev, slit_loc)
 
     ddt_psi = ddt(psi_prev, dx, dy)
