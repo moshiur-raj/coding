@@ -4,7 +4,7 @@
 
 import jax
 import jax.numpy as jnp
-from scipy.constants import hbar, eV, epsilon_0, e, m_u
+from scipy.constants import hbar, eV, epsilon_0, e, m_p
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from matplotlib import animation, colors
@@ -32,14 +32,14 @@ def initialize(
     kz = ky
     kx = jnp.sqrt(k**2 - ky**2 - kz**2)
 
-    w =  2 * wavelength
+    w = .5 * wavelength
     x_front = -D + w
     x_back  = -2.5 * D + 3 * w
     f = 0.25 * (1 + jnp.tanh((x - x_back) / w)) * (1 - jnp.tanh((x - x_front) / w))
+    # plt.plot(x.squeeze() / D, f.squeeze()); plt.show()
 
-    base = jnp.cos(ky * y) * jnp.cos(kz * z) * f
-    alpha = base * jnp.cos(kx * x)
-    beta = base * jnp.sin(kx * x)
+    alpha = jnp.cos(ky * y) * jnp.cos(kz * z) * jnp.cos(kx * x) * f
+    beta  = jnp.cos(ky * y) * jnp.cos(kz * z) * jnp.sin(kx * x) * f
     norm = jnp.sqrt((alpha**2 + beta**2).sum() * dx * dy * dz)
     alpha /= norm
     beta /= norm
@@ -47,7 +47,10 @@ def initialize(
     r = jnp.sqrt(x**2 + y**2 + z**2)
     V = jnp.where(r < R, K * (3 * R**2 - r**2) / (2 * R**3), K / r)
 
-    return alpha, beta, V / hbar
+    return alpha, beta, V
+
+def pad(x: jnp.ndarray, dh: float) -> jnp.ndarray:
+    return jnp.zeros(0)
 
 def ddx(x: jnp.ndarray, dx: float) -> jnp.ndarray:
     x_pad = jnp.pad(x, ((1, 1), (0, 0), (0, 0)))
@@ -81,7 +84,7 @@ def iterate(
         alpha: jnp.ndarray,
         beta: jnp.ndarray,
         dbeta: jnp.ndarray,
-        V_norm: jnp.ndarray,
+        V: jnp.ndarray,
         m: float,
         dx: float,
         dy: float,
@@ -90,8 +93,8 @@ def iterate(
         ) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
 
     beta += dbeta
-    alpha = alpha + dt * ( - hbar / 2 / m * laplacian(beta, dx, dy, dz) + V_norm * beta )
-    dbeta = dt / 2 * ( hbar / 2 / m * laplacian(alpha, dx, dy, dz) - V_norm * alpha )
+    alpha = alpha + dt * ( - hbar / 2 / m * laplacian(beta, dx, dy, dz) + 1 / hbar * V * beta )
+    dbeta = dt / 2 * ( hbar / 2 / m * laplacian(alpha, dx, dy, dz) - 1 / hbar * V * alpha )
     beta += dbeta
 
     return alpha, beta, dbeta
@@ -122,16 +125,16 @@ def calc_intensity(alpha: jnp.ndarray, beta: jnp.ndarray, m: float, dx: float) -
 
     return jx
 
-Z1 = 2
-Z2 = 79
-m = 4.0015 * m_u
-energy = 20e6 * eV
+Z1 = 1
+Z2 = 6
+m = m_p
+energy = 10e6 * eV
 wavelength = (2 / m / energy)**.5 * jnp.pi * hbar
 v = (2 * energy/ m)**.5
 K = 1 / 4 / jnp.pi / epsilon_0 * Z1 * Z2 * e**2
 a = K / energy
-D = 6 * a
-dh = wavelength / 5
+D = 50 * a
+dh = wavelength / 20
 y_max = D + 2 * wavelength
 dt = dh / v / 20
 n_iter = int((2 * D + 2 * wavelength) / v / dt)
@@ -142,11 +145,12 @@ n_frames = video_len * fps
 step = max(n_iter // n_frames, 1)
 prob_density_list = []
 
-alpha, beta, V_norm = initialize(D, y_max, wavelength, K, R=.75*a, dx=dh, dy=dh, dz=dh)
-dbeta = dt / 2 * ( hbar / 2 / m * laplacian(alpha, dx=dh, dy=dh, dz=dh) - V_norm * alpha )
+alpha, beta, V = initialize(D, y_max, wavelength, K, R=.75*a, dx=dh, dy=dh, dz=dh)
+dbeta = dt / 2 * ( hbar / 2 / m * laplacian(alpha, dx=dh, dy=dh, dz=dh) - 1 / hbar * V * alpha )
 density = 1000
 startx = int(round(1.5 * D / dh))
 stopx  = int(round(3.5 * D / dh))
+startx = 0; stopx = -1
 nx, ny, nz = alpha.shape
 mid = nz // 2
 starty = 0
@@ -157,11 +161,12 @@ stepx = max(nx // density, 1)
 n_avg = int(wavelength / v / dt)
 intensity = jnp.zeros((ny, nz))
 for i in tqdm(range(n_iter)):
-    alpha, beta, dbeta = iterate(alpha, beta, dbeta, V_norm, m, dx=dh, dy=dh, dz=dh, dt=dt)
+    alpha, beta, dbeta = iterate(alpha, beta, dbeta, V, m, dx=dh, dy=dh, dz=dh, dt=dt)
     if i % step == 0:
         alpha_ = alpha[startx:stopx:stepx, starty:stopy:stepy, mid]
         beta_ = beta[startx:stopx:stepx, starty:stopy:stepy, mid]
         prob_density_list.append(calc_prob_density(alpha_, beta_))
+# %% -----------------------------------------------------------------------------------------------
     # if i >= n_iter - n_avg:
     #     alpha_ = alpha[stopx-1:stopx+2]
     #     beta_ = beta[stopx-1:stopx+2]
@@ -169,7 +174,6 @@ for i in tqdm(range(n_iter)):
 
 # jnp.save('intensity', intensity)
 # jnp.save('prob_density_list', prob_density_list)
-# %% -----------------------------------------------------------------------------------------------
 
 plt.close()
 fig, ax = plt.subplots()
@@ -190,7 +194,17 @@ def animate(u):
 
 ani = animation.FuncAnimation(fig, animate, frames=prob_density_list, interval=1000/fps, blit=True)
 
-writer = animation.FFMpegWriter(fps=fps, codec='libx264')
+# writer = animation.FFMpegWriter(fps=fps, codec='libx264')
+writer = animation.FFMpegWriter(
+        fps=fps,
+        codec="hevc_vulkan",
+        extra_args=[
+            "-init_hw_device", "vulkan=vk:0",
+            "-filter_hw_device", "vk",
+            "-vf", "format=nv12,hwupload",
+            "-qp", "22",
+            ],
+        )
 ani.save('animation.mkv', writer=writer, dpi=600)
 # %% -----------------------------------------------------------------------------------------------
 
