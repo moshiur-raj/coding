@@ -1,0 +1,123 @@
+
+Mirror-nuclei mass differences: uniform-charged-sphere model vs experiment.
+================================================================================
+
+For a mirror pair (Z, N) <-> (N, Z), A = Z + N, the nuclear mass difference is
+
+    dm = m_nuc(N protons) - m_nuc(Z protons)
+       = dE_C  -  (N - Z) (m_n - m_p) c^2                              [eV]
+
+with the electrostatic term taken from the uniformly charged sphere,
+E_C = (3/5) k Q^2 / R, and pairwise (i<j) counting Z(Z-1) rather than Z^2:
+
+    dE_C = (3/5) * [e / (4 pi eps0)] * (N - Z)(A - 1) / R_avg          [eV]
+
+since  N(N-1) - Z(Z-1) = (N - Z)(A - 1).
+
+Note the single power of e: energies are reported in eV, and eV is numerically
+the electrostatic potential in volts, so e/(4 pi eps0) = 1.44e6 V*fm is the
+whole constant needed when R is in fm.
+
+R is the EQUIVALENT UNIFORM-SPHERE radius, not the rms charge radius.  For a
+uniform sphere  r_rms = sqrt(3/5) R,  so  R = sqrt(5/3) * r_rms.  Skipping this
+conversion is worth a factor of 1.29 and is the single most common way to get
+this calculation wrong.
+
+Outputs
+-------
+  mirror_nuclei_results.csv   full numerical table
+  mirror_nuclei_table.txt     formatted table, same content
+  mirror_nuclei_chart.png     four-panel chart
+
+          pair   A N-Z  R_avg    dm_exp   dm_form     naive   EM term    EC_exp    dev%  r0_fit
+                         [fm]     [MeV]     [MeV]     [MeV]     [MeV]     [MeV]            [fm]
+-----------------------------------------------------------------------------------------------
+     H-3/He-3*   3   1  2.405    -0.530    -0.575    -1.293     0.719     0.764    -5.9   1.569
+    Li-7/Be-7*   7   1  3.286     0.351     0.284    -1.293     1.578     1.644    -4.0   1.648
+     Be-9/B-9    9   1  3.252     0.557     0.832    -1.293     2.125     1.850   +14.9   1.796
+    B-11/C-11   11   1  3.106     1.471     1.488    -1.293     2.782     2.765    +0.6   1.405
+    C-13/N-13   13   1  3.178     1.709     1.969    -1.293     3.263     3.003    +8.7   1.468
+    N-15/O-15   15   1  3.364     2.243     2.302    -1.293     3.596     3.537    +1.7   1.387
+    O-17/F-17   17   1  3.477     2.249     2.683    -1.293     3.976     3.543   +12.2   1.517
+   F-19/Ne-19*  19   1  3.812     2.728     2.786    -1.293     4.079     4.021    +1.4   1.449
+  Ne-21/Na-21   21   1  3.834     3.036     3.214    -1.293     4.507     4.329    +4.1   1.447
+  Na-23/Mg-23   23   1  3.865     3.545     3.625    -1.293     4.918     4.839    +1.6   1.381
+  Mg-25/Al-25   25   1  3.910     3.766     4.010    -1.293     5.304     5.059    +4.8   1.402
+  Al-27/Si-27   27   1  3.952     4.302     4.391    -1.293     5.684     5.595    +1.6   1.338
+   Si-29/P-29   29   1  4.025     4.432     4.717    -1.293     6.011     5.726    +5.0   1.375
+    P-31/S-31   31   1  4.117     4.887     5.003    -1.293     6.296     6.180    +1.9   1.335
+   S-33/Cl-33   33   1  4.210     5.071     5.274    -1.293     6.567     6.365    +3.2   1.354
+  Cl-35/Ar-35   35   1  4.345     5.455     5.468    -1.293     6.761     6.748    +0.2   1.331
+   Ar-37/K-37   37   1  4.377     5.637     5.813    -1.293     7.106     6.930    +2.5   1.347
+   K-39/Ca-39   39   1  4.434     6.013     6.110    -1.293     7.404     7.307    +1.3   1.325
+  Ca-41/Sc-41   41   1  4.490     5.984     6.403    -1.293     7.697     7.278    +5.8   1.377
+-----------------------------------------------------------------------------------------------
+    C-14/O-14   14   2  3.231     3.966     4.366    -2.587     6.953     6.552    +6.1   1.422
+   O-18/Ne-18*  18   2  3.708     5.077     5.336    -2.587     7.923     7.664    +3.4   1.463
+  Ne-22/Mg-22   22   2  3.812     6.606     6.933    -2.587     9.520     9.193    +3.6   1.409
+  Mg-26/Si-26   26   2  3.917     8.051     8.443    -2.587    11.029    10.638    +3.7   1.371
+   Si-30/S-30   30   2  4.045     9.348     9.800    -2.587    12.387    11.934    +3.8   1.351
+   S-34/Ar-34*  34   2  4.292    10.531    10.698    -2.587    13.285    13.118    +1.3   1.342
+  Ar-38/Ca-38*  38   2  4.433    11.635    11.836    -2.587    14.423    14.221    +1.4   1.337
+  Fe-54/Ni-54*  54   2  4.793    16.024    16.521    -2.587    19.108    18.611    +2.7   1.302
+-----------------------------------------------------------------------------------------------
+  Si-32/Ar-32*  32   4  4.196    19.833    20.361    -5.173    25.535    25.007    +2.1   1.349
+   S-36/Ca-36*  36   4  4.355    22.137    22.602    -5.173    27.775    27.310    +1.7   1.341
+-----------------------------------------------------------------------------------------------
+* = charge radii measured for BOTH members; else parent's radius used for both.
+
+SUMMARY
+------------------------------------------------------------------------------
+pairs analysed                          : 29
+mean |deviation| of dE_C, all pairs     :   3.8 %
+mean |deviation| of dE_C, A <= 15       :   6.0 %
+mean |deviation| of dE_C, A >  15       :   3.1 %
+mean signed deviation,   A >  15        :  +3.1 %
+rms residual on dm,      A >  15        : 0.301 MeV
+mean fitted r0 = R_fit/A^(1/3), A > 15  : 1.375 fm
+
+The residual is NOT the Nolen-Schiffer anomaly.  NS is a ~7% SHORTFALL of
+careful microscopic calculations against experiment.  The raw uniform
+sphere here runs ~3% HIGH because it omits the Coulomb exchange term, the
+finite proton charge distribution, and the c.m. correction -- all of which
+reduce the computed dE_C by several percent.  Apply those and this model
+would land below experiment, which is where NS lives.
+
+The largest outliers are structural, not statistical: 13N, 17F and 41Sc are
+exactly the cases where the odd proton occupies a new shell just outside a
+closed core (12C, 16O, 40Ca).  That proton orbits well outside the charge
+radius of the core, so it feels less repulsion than a uniformly smeared
+fluid would predict, and the model over-shoots.  17F is the extreme case:
+its valence 2s1/2 proton is famously halo-like.
+
+If the electromagnetic term is dropped entirely and only
+(Z-N)(m_n - m_p) is kept, EVERY mirror pair comes out with the wrong
+sign: the proton-rich member is predicted lighter, when it is heavier.
+  cases with correct sign, naive term alone : 1 / 29
+  cases with correct sign, full formula     : 29 / 29
+
+EQUAL-RADIUS ASSUMPTION (pairs with both radii measured)
+------------------------------------------------------------------------------
+          pair     r_p     r_m   d r/r   EC_exp  EC(Ravg)  EC(2 radii)
+      H-3/He-3  1.7591  1.9661   11.8%    0.764     0.719        0.681
+     Li-7/Be-7  2.4440  2.6460    8.3%    1.644     1.578        1.392
+    F-19/Ne-19  2.8976  3.0082    3.8%    4.021     4.079        3.393
+    O-18/Ne-18  2.7726  2.9714    7.2%    7.664     7.923        6.753
+    S-34/Ar-34  3.2840  3.3657    2.5%   13.118    13.285       11.936
+   Ar-38/Ca-38  3.4022  3.4652    1.9%   14.221    14.423       13.197
+   Fe-54/Ni-54  3.6880  3.7370    1.3%   18.611    19.108       17.436
+   Si-32/Ar-32  3.1530  3.3468    6.1%   25.007    25.535       22.558
+    S-36/Ca-36  3.2982  3.4484    4.6%   27.310    27.775       25.049
+
+Using each member's own radius is EXACT within the model and yet agrees
+WORSE.  The reason is error amplification, not physics.  For Fe-54/Ni-54
+the two absolute Coulomb energies are ~118 and ~135 MeV; their difference
+is 17 MeV.  A 1% error in either radius -- from the measurement, or from
+the uniform-sphere idealisation itself -- moves a 130 MeV number by 1.3
+MeV, i.e. by 7% of the answer.  Holding R fixed makes that systematic
+cancel in the subtraction.  The equal-radius assumption is therefore not
+just a convenience: it is the numerically stable way to use this model.
+(The real radius difference is a genuine, measured effect -- the extra
+proton's repulsion inflates the proton-rich partner -- and is used to
+constrain the symmetry-energy slope L.  It is simply too small to extract
+through a formula this crude.)

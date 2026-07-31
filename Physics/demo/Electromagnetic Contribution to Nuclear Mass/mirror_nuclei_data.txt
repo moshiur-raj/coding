@@ -1,0 +1,68 @@
+# ============================================================================
+# EXPERIMENTAL DATA: MIRROR NUCLEI
+# ============================================================================
+#
+# Each row is a mirror pair (Z, N) <-> (N, Z), with A = Z + N.
+#   "parent" = the neutron-rich member, Z_p < N_p   (usually the stable one)
+#   "mirror" = the proton-rich member,  Z_m = N_p, N_m = Z_p
+#
+# COLUMNS
+#   A          mass number
+#   parent     nuclide symbol of the neutron-rich member
+#   Zp         proton number of the parent
+#   mirror     nuclide symbol of the proton-rich member
+#   ME_p       ATOMIC mass excess of parent, keV   [AME2020]
+#   ME_m       ATOMIC mass excess of mirror, keV   [AME2020]
+#   r_p        rms CHARGE radius of parent, fm     [Angeli & Marinova 2013 + updates]
+#   r_m        rms CHARGE radius of mirror, fm     (nan = not measured)
+#
+# NOTES ON THE DATA
+#   * Mass excesses are ATOMIC (that is how AME tabulates them). The script
+#     converts to nuclear masses by removing (N-Z) electron masses.
+#   * r is the rms charge radius. The script converts to the equivalent
+#     UNIFORM-SPHERE radius via R = sqrt(5/3) * r_rms, which is the R that
+#     belongs in E_C = (3/5) k Q^2 / R.
+#   * Where r_m is nan, only the (usually stable) parent's radius is measured;
+#     the script then uses the parent's radius for both members. This is the
+#     "both mirror nuclei have almost the same R" assumption.
+#   * The five pairs with BOTH radii measured (A = 3, 7, 18, 19, 32, 34, 36, 38,
+#     54) allow the equal-radius assumption itself to be tested.
+#   * Values are quoted to the precision of the compilations; the last digit or
+#     two of the exotic proton-rich members (32Ar, 36Ca, 54Ni, 9B) carries
+#     experimental uncertainty of order 1-50 keV. Re-verify against the primary
+#     AME2020 tables before publishing anything.
+#
+# ============================================================================
+A   parent  Zp  mirror  ME_p        ME_m        r_p     r_m
+# ---- Tz = +-1/2 series, N - Z = 1 -----------------------------------------
+3   H-3     1   He-3     14949.81    14931.22   1.7591  1.9661
+7   Li-7    3   Be-7     14907.11    15769.00   2.4440  2.6460
+9   Be-9    4   B-9      11348.45    12416.50   2.5190  nan
+11  B-11    5   C-11      8667.93    10650.35   2.4060  nan
+13  C-13    6   N-13      3125.01     5345.48   2.4614  nan
+15  N-15    7   O-15       101.44     2855.61   2.6058  nan
+17  O-17    8   F-17      -808.76     1951.70   2.6932  nan
+19  F-19    9   Ne-19    -1487.39     1751.44   2.8976  3.0082
+21  Ne-21   10  Na-21    -5731.78    -2184.64   2.9695  nan
+23  Na-23   11  Mg-23    -9529.85    -5473.65   2.9936  nan
+25  Mg-25   12  Al-25   -13192.76    -8915.90   3.0284  nan
+27  Al-27   13  Si-27   -17196.87   -12384.35   3.0610  nan
+29  Si-29   14  P-29    -21895.08   -16951.79   3.1176  nan
+31  P-31    15  S-31    -24440.54   -19042.52   3.1889  nan
+33  S-33    16  Cl-33   -26585.85   -21003.36   3.2611  nan
+35  Cl-35   17  Ar-35   -29013.54   -23047.44   3.3654  nan
+37  Ar-37   18  K-37    -30947.66   -24799.75   3.3905  nan
+39  K-39    19  Ca-39   -33807.01   -27282.57   3.4349  nan
+41  Ca-41   20  Sc-41   -35137.90   -28642.44   3.4780  nan
+# ---- Tz = +-1 series, N - Z = 2 -------------------------------------------
+14  C-14    6   O-14      3019.89     8007.46   2.5025  nan
+18  O-18    8   Ne-18     -781.48     5317.57   2.7726  2.9714
+22  Ne-22   10  Mg-22    -8024.72     -396.77   2.9525  nan
+26  Mg-26   12  Si-26   -16214.53    -7141.30   3.0339  nan
+30  Si-30   14  S-30    -24432.94   -14063.39   3.1336  nan
+34  S-34    16  Ar-34   -29931.69   -18378.29   3.2840  3.3657
+38  Ar-38   18  Ca-38   -34714.72   -22058.06   3.4022  3.4652
+54  Fe-54   26  Ni-54   -56255.07   -39208.60   3.6880  3.7370
+# ---- Tz = +-2 series, N - Z = 4 -------------------------------------------
+32  Si-32   14  Ar-32   -24077.69    -2200.20   3.1530  3.3468
+36  S-36    16  Ca-36   -30664.13    -6483.60   3.2982  3.4484

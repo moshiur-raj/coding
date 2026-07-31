@@ -1,0 +1,86 @@
+\documentclass[a4paper, 12pt, oneside]{book}
+\usepackage[subpreambles=true]{standalone}
+\usepackage{import}
+
+\usepackage[a4paper, width=150mm, top=25mm, bottom=25mm, headheight=10mm]{geometry}
+% \usepackage[a4paper, width=150mm, top=25mm, bottom=25mm, headheight=10mm, bindingoffset=6mm]{geometry}
+
+\usepackage{lmodern}
+
+\usepackage{setspace}
+\onehalfspacing
+
+\usepackage{fancyhdr}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{1.2pt}
+\pagestyle{fancy}
+\fancyhead{}
+\fancyhead[R]{\leftmark}
+\fancyfoot{}
+\fancyfoot[R]{page \thepage}
+\newcommand{\footnotecustom}{}
+\fancypagestyle{plain}{
+	\fancyhead{}
+	\fancyfoot{}
+	\fancyfoot[R]{page \thepage}
+	\fancyfoot[L]{\footnotecustom}
+}
+
+\usepackage{mhchem}
+\usepackage{siunitx}
+
+\begin{document}
+\begin{center}
+	\Large \bfseries Electromagnetic Contribution to Nuclear Mass
+	\hline
+\end{center}
+
+Consider two mirror nuclei, \ce{^15_7N} and \ce{^15_8O}. Since \ce{^15_7N} has more neutrons, a
+naive expectation would be to assume \ce{^15_7N} has more mass as neutrons are more massive compared
+to protons. However, this is not the case, \ce{^15_8O} is the more massive nucleus. In this note, we
+will argue that electrostatic potential, through mass energy correspondence, can account for this
+discrepancy to some degree.
+
+A uniformly charged sphere of radius $R$ and total charge $Q$ has the following potential energy.
+\begin{equation}
+	V = \frac{3}{20 \pi \epsilon_0} \, \frac{Q^2}{R}
+\end{equation}
+Let, $R$ be the effective radius of a nucleus and $Z$ its number of protons. Our goal is to
+calculate the binding energy due to electric potential. We do it in the following way. First $Z$
+protons are considered in their ``free" state, i.e., $Z$ charged spheres of radius $R$ that sit
+infinitely far apart from each other such that they do not interact with each other. Then, the
+spheres are brought together and a new charged sphere is created with charge $Ze$ and radius $R$. The
+difference in the potential energy between these two configurations, $U$, is assumed to contribute
+to mass through $E=mc^2$.
+\begin{equation}
+	U = \frac{3}{20 \pi \epsilon_0} \, \frac{(Ze)^2 - Z e^2}{R}
+\end{equation}
+If $N$ denotes the number of neutrons in a nuclei, then a nuclear configuration is denoted by the
+number of protons and neutrons as $(Z, N)$. Now, $(Z, N)$ and $(N, Z)$ are mirror nuclei of each
+other. We assume that the binding energy due to the nuclear forces are equal in both nuclei as
+nuclear force treats both proton and neutron almost equally. The mass difference between mirror
+nuclei then comes from the difference in electric potential energy and due to the mass difference
+between proton and neutron. The mass difference between $(N, Z)$ and $(Z, N)$ then simplifies to the
+following expression.
+\begin{equation}
+	\Delta m = \frac{3e^2}{20 \pi \epsilon_0 c^2} \frac{(N-Z)(N+Z-1)}{R_\mathrm{avg}} - (N-Z) (m_n - m_p)
+\end{equation}
+We assumed both mirror nuclei have almost the same radius and $R_\mathrm{avg}$ is their average.
+$m_n, m_p$ are neutron and proton masses respectively. If expressed in electron volts the mass
+difference becomes the following.
+\begin{equation}
+	\Delta m = \frac{3e}{20 \pi \epsilon_0} \frac{(N-Z)(N+Z-1)}{R_\mathrm{avg}} - (N-Z) (m_n - m_p)
+\end{equation}
+For \ce{^15_7N}, $Z=7, N=8$. The r.m.s. radius is $2.61\unit{\femto\meter}$, which we have to
+multiply by $\sqrt{5/3}$ to get $R_\mathrm{avg}$ and $m_n - m_p$ is
+$1.293\unit{\mega\electronvolt}$. The mass difference then comes out to be
+$2.29\unit{\mega\electronvolt}$, as in \ce{^17O} has $2.29\unit{\mega\electronvolt}$ more mass than
+\ce{^15N}. The experimental value for atomic mass difference in $2.754\unit{\mega\electronvolt}$,
+but Oxygen has an extra electron, so we need to subtract the energy of an electron. Then, the
+nuclear mass difference is $2.24\unit{\mega\electronvolt}$, very close to the value given by the
+formula. If we only used the mass difference between proton and neutron we would guess that
+\ce{^15N} is $1.293\unit{\mega\electronvolt}$ more massive than \ce{^15O}. But, due to Oxygen having
+more protons, the increase in electric potential (scales as $\sim Z^2$) more than compensates for
+the lower mass of proton.
+
+\end{document}
