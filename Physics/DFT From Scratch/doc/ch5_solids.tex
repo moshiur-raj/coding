@@ -1,0 +1,361 @@
+\chapter{Electrons in Crystals: Plane Waves, k-Points, and Metallic Occupations}
+\label{ch:solids}
+
+\section{Direct and reciprocal lattices}
+
+A crystal is defined by three primitive vectors $\mathbf a_1, \mathbf a_2,
+\mathbf a_3$; the set of translations $\RR = n_1\mathbf a_1 + n_2\mathbf a_2
++ n_3 \mathbf a_3$ ($n_i \in \mathbb Z$) is the Bravais lattice. For FCC gold
+the primitive vectors were given in Chapter~\ref{ch:intro}; the primitive
+cell volume is $\Omega = |\mathbf a_1 \cdot (\mathbf a_2 \times \mathbf
+a_3)| = a^3/4$.
+
+The \textbf{reciprocal lattice} consists of all vectors $\GG$ such that
+$\ee^{\ii \GG\cdot\RR} = 1$ for every lattice translation $\RR$. Its
+primitive vectors are
+\begin{equation}
+\mathbf b_1 = \frac{2\pi\, (\mathbf a_2 \times \mathbf a_3)}{\Omega},
+\qquad
+\mathbf b_2 = \frac{2\pi\, (\mathbf a_3 \times \mathbf a_1)}{\Omega},
+\qquad
+\mathbf b_3 = \frac{2\pi\, (\mathbf a_1 \times \mathbf a_2)}{\Omega},
+\qquad
+\mathbf a_i \cdot \mathbf b_j = 2\pi\, \delta_{ij}.
+\end{equation}
+(In matrix language: if $A$ has rows $\mathbf a_i$ then $B = 2\pi
+(A^{-1})^{\mathsf T}$ has rows $\mathbf b_i$ --- implement it that way.) The
+reciprocal of FCC is BCC. The Wigner--Seitz cell of the reciprocal lattice is
+the \textbf{first Brillouin zone} (BZ); for FCC it is the truncated
+octahedron with the high-symmetry points $\Gamma = (0,0,0)$,
+$X = \tfrac{2\pi}{a}(1,0,0)$, $L = \tfrac{\pi}{a}(1,1,1)$,
+$W = \tfrac{2\pi}{a}(1,\tfrac12,0)$, $K = \tfrac{2\pi}{a}(\tfrac34,
+\tfrac34, 0)$, along which you will plot gold's band structure.
+
+\section{Bloch's theorem}
+
+The Kohn--Sham potential of a crystal is lattice-periodic,
+$\veff(\rr + \RR) = \veff(\rr)$.
+
+\begin{theorem}[Bloch]
+The eigenstates of a Hamiltonian with a lattice-periodic potential can be
+chosen as
+\begin{equation}
+\psi_{n\kk}(\rr) = \ee^{\ii \kk\cdot\rr}\, u_{n\kk}(\rr),
+\qquad
+u_{n\kk}(\rr + \RR) = u_{n\kk}(\rr),
+\label{eq:bloch}
+\end{equation}
+labeled by a wavevector $\kk$ in the first Brillouin zone and a discrete band
+index $n$.
+\end{theorem}
+
+\begin{proof}
+Let $\hat T_{\RR}$ be the translation operator, $(\hat T_{\RR}\psi)(\rr) =
+\psi(\rr + \RR)$. Periodicity of the potential means $[\Ha, \hat T_{\RR}] =
+0$ for all $\RR$, and the $\hat T_{\RR}$ commute among themselves, so all can
+be simultaneously diagonalized with $\Ha$. Since $\hat T_{\RR}$ is unitary
+its eigenvalues have modulus one, and the group law $\hat T_{\RR}\hat
+T_{\RR'} = \hat T_{\RR + \RR'}$ forces the eigenvalue to be an exponential of
+a linear function of $\RR$: $\hat T_{\RR} \psi = \ee^{\ii\kk\cdot\RR}\psi$
+for some real vector $\kk$. Defining $u(\rr) \equiv
+\ee^{-\ii\kk\cdot\rr}\psi(\rr)$, one checks $u(\rr+\RR) = u(\rr)$. Finally,
+$\kk$ and $\kk + \GG$ give the same eigenvalue of every $\hat T_{\RR}$, so
+$\kk$ may be restricted to the first BZ.
+\end{proof}
+
+Physically: in a perfect crystal, momentum is conserved modulo reciprocal
+lattice vectors; $\kk$ (``crystal momentum'') is the corresponding quantum
+number. The spectrum at each $\kk$ is discrete ($\varepsilon_{n\kk}$), and
+plotted along BZ paths gives the \emph{band structure}. Bloch's theorem is
+also a factorization of the computation: \textbf{the giant eigenproblem of
+the infinite crystal decouples into independent moderate-size eigenproblems,
+one per $\kk$-point} --- the single most important source of parallelism in
+your program.
+
+\section{The plane-wave basis}
+
+Since $u_{n\kk}$ is cell-periodic, expand it in the discrete Fourier series
+of the lattice:
+\begin{equation}
+\psi_{n\kk}(\rr) = \frac{1}{\sqrt{\Omega}} \sum_{\GG}
+c_{n\kk}(\GG)\; \ee^{\ii(\kk + \GG)\cdot \rr}.
+\label{eq:pwexpansion}
+\end{equation}
+The basis functions $\ket{\kk+\GG}$ are orthonormal over the cell. The
+expansion is truncated by keeping every $\GG$ with kinetic energy below a
+\textbf{cutoff}:
+\begin{equation}
+\tfrac12 |\kk + \GG|^2 \leq E_{\mathrm{cut}} .
+\label{eq:ecut}
+\end{equation}
+This is the \emph{only} convergence parameter of the basis: increasing
+$E_{\mathrm{cut}}$ enlarges the variational space, so the total energy
+decreases monotonically toward its converged value (other quantities ---
+eigenvalue differences, lattice constants --- also converge, though not
+necessarily monotonically).
+The number of plane waves is, by counting $\GG$-points inside a sphere,
+\begin{equation}
+N_{\mathrm{pw}} \approx \frac{\Omega}{6\pi^2}\,
+\big(2E_{\mathrm{cut}}\big)^{3/2}.
+\end{equation}
+For gold with an HGH pseudopotential, $E_{\mathrm{cut}} \approx
+40$--$60$\,Ha; with $\Omega \approx 114$\,Bohr$^3$ this gives $N_{\mathrm{pw}}
+\sim 1400$--$2500$ coefficients per band per spin component --- small dense
+problems, ideal for GPU batching.
+
+Plane waves have three cardinal virtues: (i) they are unbiased --- no atom-
+centered basis-set superposition errors; (ii) matrix elements of the kinetic
+operator and of any multiplicative potential are trivial (diagonal, and
+convolution, respectively); (iii) the map between the coefficient
+representation $c(\GG)$ and the real-space representation $u(\rr)$ on a
+uniform grid is the FFT, costing $O(N \log N)$. Their vice --- inability to
+resolve the violent oscillations of wavefunctions near nuclei --- is cured by
+pseudopotentials (Chapter~\ref{ch:pseudo}).
+
+In this basis the Kohn--Sham equation \eqref{eq:kseq} becomes an ordinary
+matrix eigenproblem for the coefficient vector at each $\kk$,
+\begin{equation}
+\sum_{\GG'} H_{\GG\GG'}(\kk)\, c_{n\kk}(\GG') = \varepsilon_{n\kk}\,
+c_{n\kk}(\GG),
+\qquad
+H_{\GG\GG'}(\kk) = \tfrac12|\kk+\GG|^2\,\delta_{\GG\GG'}
++ V(\GG - \GG') + \dots,
+\label{eq:pwmatrix}
+\end{equation}
+where $V(\GG)$ are the Fourier components of the local potential
+(convention \eqref{eq:fourierconv} below) and the dots stand for the
+nonlocal pseudopotential of Chapter~\ref{ch:pseudo}. The matrix is never
+stored; Chapter~\ref{ch:hamiltonian} shows how to apply it.
+
+\paragraph{Fourier conventions (fix these once, use them everywhere).}
+Every cell-periodic function $g(\rr)$ --- density, potential, $u_{n\kk}$ ---
+is expanded as
+\begin{equation}
+g(\rr) = \sum_{\GG} g(\GG)\, \ee^{\ii\GG\cdot\rr},
+\qquad
+g(\GG) = \frac{1}{\Omega}\int_{\Omega} g(\rr)\, \ee^{-\ii\GG\cdot\rr}\,\dd\rr .
+\label{eq:fourierconv}
+\end{equation}
+With this convention $g(\GG{=}0)$ is the cell average of $g$, and
+$\int_\Omega g^* h\,\dd\rr = \Omega\sum_{\GG} g^*(\GG) h(\GG)$. On an
+$N_1{\times}N_2{\times}N_3$ grid with points
+$\rr_{j} = \sum_i (j_i/N_i)\,\mathbf a_i$, Eq.~\eqref{eq:fourierconv} is
+exactly the discrete Fourier transform:
+$g(\GG) = \tfrac{1}{N}\,\mathrm{FFT}[g(\rr_j)]$ and
+$g(\rr_j) = N\cdot\mathrm{IFFT}[g(\GG)]$ with $N = N_1N_2N_3$ and the usual
+library normalization (forward unnormalized, inverse divided by $N$).
+Integer FFT frequency $(m_1,m_2,m_3)$ corresponds to
+$\GG = \sum_i m_i \mathbf b_i$, with $m_i$ running over
+$-N_i/2 \dots N_i/2 - 1$ in the library's wrapped order. For wavefunctions
+the coefficients in Eq.~\eqref{eq:pwexpansion} carry an extra
+$1/\sqrt\Omega$ so that normalization is simply
+$\sum_{\GG,s} |c^s_{n\kk}(\GG)|^2 = 1$; then
+$u_{n\kk}(\rr_j) = \tfrac{N}{\sqrt\Omega}\,\mathrm{IFFT}[c]$ and the density
+contribution of the state is $|u_{n\kk}(\rr_j)|^2$ in electrons per
+Bohr$^3$.
+
+\paragraph{Densities need a doubled sphere.} The density $n(\rr) \sim
+|\psi|^2$ contains products of plane waves, hence Fourier components up to
+$2\sqrt{2E_{\mathrm{cut}}}$: represent $n$, $\veff$, and all potentials on a
+grid/sphere with cutoff $4E_{\mathrm{cut}}$ (``dense grid''). Choosing the
+FFT grid at least this large avoids aliasing errors when forming
+$n$ and when multiplying $\veff \times \psi$ in real space.
+
+\section{A first band gap: the two-plane-wave model}
+\label{sec:nfe}
+
+Before any machinery, solve Eq.~\eqref{eq:pwmatrix} by hand in the one
+situation where two plane waves suffice. It explains where band gaps come
+from, it is the first nontrivial test of your code (Chapter~\ref{ch:verify},
+Stage~1), and --- with one extra observation about symmetry --- it is the
+seed of the topological property computed in Chapter~\ref{ch:topology}.
+
+Take a weak local potential and a $\kk$ on the zone boundary, halfway to a
+reciprocal lattice vector: $\kk = \tfrac12\GG_1$ (in FCC, $X$ and $L$ are
+such points). The two plane waves $\ket{\kk}$ and $\ket{\kk - \GG_1}$ have
+wavevectors $+\tfrac12\GG_1$ and $-\tfrac12\GG_1$: the same kinetic energy
+$T = \tfrac18|\GG_1|^2$. Degenerate states are mixed by any perturbation
+that connects them, however weak, and the potential does so through its
+Fourier component $V_1 \equiv V(\GG_1)$. Keeping just these two basis
+functions, Eq.~\eqref{eq:pwmatrix} is
+\begin{equation}
+\begin{pmatrix} T & V_1 \\ V_1^* & T \end{pmatrix}
+\begin{pmatrix} c(\mathbf 0) \\ c(-\GG_1)\end{pmatrix}
+= \varepsilon \begin{pmatrix} c(\mathbf 0) \\ c(-\GG_1)\end{pmatrix}
+\qquad\Longrightarrow\qquad
+\varepsilon_\pm = T \pm |V_1| .
+\end{equation}
+A gap $2|V_1|$ opens: this is the origin of every band gap at a zone
+boundary. Now the observation. If the crystal has an atom at the origin and
+inversion symmetry (as gold does), $V(\rr) = V(-\rr)$ makes $V_1$ real, and
+the eigenvectors are $(1, \pm1)/\sqrt2$ --- in real space
+\begin{equation}
+\begin{aligned}
+\psi_{\mathrm{even}} &\propto \ee^{\ii\GG_1\cdot\rr/2} + \ee^{-\ii\GG_1\cdot\rr/2}
+\propto \cos\!\big(\tfrac12\GG_1\cdot\rr\big),
+&\qquad \varepsilon_{\mathrm{even}} &= T + V_1,\\
+\psi_{\mathrm{odd}} &\propto \ee^{\ii\GG_1\cdot\rr/2} - \ee^{-\ii\GG_1\cdot\rr/2}
+\propto \sin\!\big(\tfrac12\GG_1\cdot\rr\big),
+&\qquad \varepsilon_{\mathrm{odd}} &= T - V_1 .
+\end{aligned}
+\label{eq:nfeparity}
+\end{equation}
+The cosine state is \emph{even} under $\rr \to -\rr$ and piles its charge
+on the atoms, like an $s$ orbital; the sine state is \emph{odd}, has a node
+on every atom and its charge between them, like a $p$ orbital. Which one
+is lower is decided by the sign of a single number:
+\begin{itemize}[leftmargin=2em]
+\item $V_1 < 0$ (the electron is attracted to the atomic site at this length
+scale): the even, $s$-like state is below the odd, $p$-like one --- the
+order you would guess from atomic physics, where $s$ levels lie below $p$
+levels.
+\item $V_1 > 0$: the order is \emph{inverted}; the odd state is lower.
+\end{itemize}
+Both signs occur in real materials, because the effective potential felt by
+valence electrons is not simply attractive (Chapter~\ref{ch:pseudo}), and
+because other bands of the same parity can push one of the two states.
+Remember this picture: an integer-valued property of gold's band structure
+will turn out to be nothing more than a record of which of these two
+orderings is realized at $X$ and at $L$.
+
+\section{Brillouin-zone integration}
+\label{sec:bzintegration}
+
+Every observable of the crystal is a BZ average; e.g.\ the density and
+band energy are
+\begin{equation}
+n(\rr) = \sum_n \int_{\mathrm{BZ}} \frac{\dd\kk}{\Omega_{\mathrm{BZ}}}\,
+f_{n\kk}\, |\psi_{n\kk}(\rr)|^2,
+\qquad
+E_{\mathrm{band}} = \sum_n \int_{\mathrm{BZ}}
+\frac{\dd\kk}{\Omega_{\mathrm{BZ}}}\, f_{n\kk}\, \varepsilon_{n\kk}.
+\end{equation}
+Numerically the integral becomes a weighted sum over a finite mesh. The
+standard \textbf{Monkhorst--Pack} mesh is the uniform grid
+\begin{equation}
+\kk_{(m_1 m_2 m_3)} = \sum_{i=1}^{3} \frac{2 m_i - N_i - 1}{2 N_i}\,
+\mathbf b_i,
+\qquad m_i = 1, \dots, N_i,
+\label{eq:mpmesh}
+\end{equation}
+i.e.\ a uniform $N_1{\times}N_2{\times}N_3$ grid centered on the origin. For
+odd $N_i$ it contains $\Gamma$; for even $N_i$ it straddles $\Gamma$
+symmetrically without containing it (the fractional coordinates are
+$\pm\tfrac{1}{2N}, \pm\tfrac{3}{2N}, \dots$). The alternative
+``$\Gamma$-centered'' grid uses fractional coordinates $m_i/N_i$,
+$m_i = 0,\dots,N_i{-}1$, and always contains $\Gamma$. Both converge to
+the same answer as $N_i\to\infty$, but for the FCC lattice they are
+\emph{not} equally good at finite $N_i$: the $\Gamma$-centered grid is
+mapped onto itself by all 48 operations of the cubic point group, whereas
+the even-$N$ grid of Eq.~\eqref{eq:mpmesh}, built along the primitive
+$\mathbf b_i$, is not (its offset
+$\tfrac{1}{2N}(\mathbf b_1{+}\mathbf b_2{+}\mathbf b_3)$ is not invariant
+modulo the grid spacing). A symmetry-breaking mesh produces a density of
+slightly lower symmetry, and the damage is visible: in a $4^3$
+calculation for gold the fourfold-degenerate $d$ levels at $\Gamma$ split
+by $8$\,meV and the four equivalent $L$ points come out with energies
+differing by $22$\,meV; with an $8^3$ mesh the same defects are still
+about $1$ and $2$\,meV. With a $\Gamma$-centered mesh they vanish to
+solver accuracy. \textbf{Use $\Gamma$-centered meshes for
+gold.} They have a second advantage: for even $N_i$ they contain all eight
+points $\tfrac12(n_1,n_2,n_3)$ that Chapter~\ref{ch:topology} needs.
+Point-group symmetry can fold the mesh to the irreducible wedge with integer
+weights; \emph{for a first code, skip symmetry reduction} --- use the full
+mesh with equal weights $w_{\kk} = 1/N_{\kk}$. It is simpler, impossible to
+get subtly wrong, and on a GPU the extra $\kk$-points are nearly free because
+they batch perfectly, and symmetry-related points \emph{must} then come out
+with identical eigenvalues, which is a useful test. (One reduction is free
+and safe: time reversal maps
+$\kk \to -\kk$ with identical eigenvalues and density,
+Section~\ref{sec:symmetry}, so you may keep one point of each $\pm\kk$ pair
+with doubled weight.) Gold needs a dense mesh ($12^3$ to $16^3$ with
+smearing) for well-converged total energies, because the integrand jumps
+at the Fermi surface; an $8^3$ mesh is already adequate for band
+structures and for debugging. Coordinates:
+store each $\kk$ as its three fractional components along
+$\mathbf b_{1,2,3}$ and convert to Cartesian with $\kk_{\mathrm{cart}} =
+\kk_{\mathrm{frac}} B$ (rows of $B$ are the $\mathbf b_i$). The
+high-symmetry points quoted above are, in fractional form,
+$\Gamma = (0,0,0)$, $X = (0, \tfrac12, \tfrac12)$,
+$L = (\tfrac12,\tfrac12,\tfrac12)$,
+$W = (\tfrac14,\tfrac12,\tfrac34)$,
+$K = (\tfrac38,\tfrac38,\tfrac34)$ for the $\mathbf a_i$ of
+Chapter~\ref{ch:intro}.
+
+\section{Metals: fractional occupations and smearing}
+\label{sec:smearing}
+
+In an insulator, bands are either full or empty and $f_{n\kk} \in \{0,1\}$
+(per spinor state; no factor 2 once we use spinors). In a metal the
+occupation at $T=0$ is a step function $f = \theta(\mu -
+\varepsilon_{n\kk})$: the integrand of every BZ integral is discontinuous
+across the Fermi surface, and a discrete $\kk$-sum converges miserably
+($\sim 1/N_{\kk}$, with wild oscillations). Worse, states at the Fermi level
+flip between occupied and empty from one SCF iteration to the next, making
+self-consistency unstable.
+
+The cure is \textbf{smearing}: replace the step by a smooth function of width
+$\sigma$,
+\begin{equation}
+f_{n\kk} = f\!\left(\frac{\varepsilon_{n\kk} - \mu}{\sigma}\right).
+\end{equation}
+Two standard choices to implement:
+\begin{enumerate}[leftmargin=2em]
+\item \textbf{Fermi--Dirac}: $f(x) = 1/(\ee^{x} + 1)$. Physically a finite
+electronic temperature $T = \sigma/k_B$. The associated entropy per state is
+$s = -[f \ln f + (1-f)\ln(1-f)]$.
+\item \textbf{Gaussian / Methfessel--Paxton}: $f_0(x) = \tfrac12
+\mathrm{erfc}(x)$, and the MP family adds Hermite-polynomial corrections,
+$f_1(x) = f_0(x) - \tfrac{x}{2\sqrt\pi} \ee^{-x^2}$ (order 1), which makes the
+smeared free energy insensitive to $\sigma$ to higher order --- the usual
+choice for metals like gold, with $\sigma \approx 0.01$\,Ha.
+\end{enumerate}
+
+\paragraph{The free energy.} With smearing, the variational quantity is not
+$E$ but the \textbf{Mermin free energy}
+\begin{equation}
+F = E - \sum_{n\kk} w_{\kk}\, \sigma\, s(f_{n\kk}),
+\label{eq:mermin}
+\end{equation}
+which is what must decrease during SCF and what enters total-energy
+comparisons at fixed $\sigma$. Here $s$ is evaluated at $x = (\varepsilon_{n\kk}-\mu)/\sigma$. For the
+non-thermal schemes $s$ is a ``generalized entropy'' defined so that $F$ is
+still variational:
+$s_0(x) = \ee^{-x^2}/(2\sqrt{\pi})$ for Gaussian and
+$s_1(x) = (1 - 2x^2)\,\ee^{-x^2}/(4\sqrt{\pi})$ for Methfessel--Paxton
+order~1 (which can be negative --- it is not a physical entropy). The best
+estimate of the $\sigma\to0$ energy is $E_0 \approx \tfrac12 (E + F)$ for
+Fermi--Dirac and Gaussian smearing; for Methfessel--Paxton $F$ itself is
+already the estimate, which is the point of the scheme.
+
+\paragraph{Finding the Fermi level.} $\mu$ is fixed by charge conservation:
+\begin{equation}
+N_e = \sum_{n\kk} w_{\kk}\,
+f\!\left(\frac{\varepsilon_{n\kk} - \mu}{\sigma}\right).
+\label{eq:fermibisect}
+\end{equation}
+The right-hand side is monotonically increasing in $\mu$ for Fermi--Dirac
+and Gaussian smearing (for MP orders $\ge 1$ the occupation function
+overshoots and $N(\mu)$ can decrease slightly across gapped regions of the
+spectrum; bisection between the brackets below still converges to a valid
+root, but do not assume uniqueness when debugging); solve by bisection
+(or Newton with bisection fallback) between $\min \varepsilon - 10\sigma$ and
+$\max\varepsilon + 10\sigma$ to $\sim 10^{-12}$. Include enough
+\emph{empty bands} in the eigensolver: 11-electron gold fills, on average,
+11 spinor bands per $\kk$-point, so solve for $\geq 20$ bands so that
+the smeared occupations have room to spill and the eigensolver has a buffer
+(Chapter~\ref{ch:algorithms}).
+
+\begin{gpubox}{GPU/JAX notes for this chapter}
+The $(\kk, n)$ pair is your fundamental batch axis. Store all coefficients as
+one array of shape $[N_k, N_{\mathrm{bands}}, 2, N_G^{\max}]$ (spinor
+dimension 2), padding each $\kk$-point's sphere to a common $N_G^{\max}$ with
+a boolean mask (JAX demands static shapes; masked padding wastes a few
+percent and buys perfect batching). Fermi search
+\eqref{eq:fermibisect} is a scalar bisection over a reduction of the whole
+$\varepsilon$ array --- do it on device with \texttt{lax.while\_loop}; a
+fixed 60--80 iteration \texttt{fori\_loop} bisection is even simpler and
+JIT-friendly. Smearing functions must be implemented with numerically safe
+forms ($\mathrm{erfc}$, \texttt{log1p}, clipping $x$ to $\pm 40$) to avoid
+NaNs poisoning gradients.
+\end{gpubox}

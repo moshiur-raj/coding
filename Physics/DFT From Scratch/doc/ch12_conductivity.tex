@@ -1,0 +1,378 @@
+\chapter{Electrical Conductivity: What DFT Can and Cannot Tell You}
+\label{ch:conductivity}
+\input{figdata/optics_numbers.tex}
+
+Gold is one of the best conductors there is: at room temperature its
+resistivity is $\rho = 2.2\,\mu\Omega\,$cm, i.e.\ a conductivity
+$\sigma = 1/\rho = 4.5\times10^{7}$\,S/m. Can the program you have written
+predict this number? The honest answer has two halves, and separating them
+is the point of this chapter.
+\begin{itemize}[leftmargin=2em]
+\item \textbf{Yes:} everything about conduction that is a property of the
+\emph{perfect crystal} --- which electrons carry the current, how fast they
+move, how strongly they respond to a field --- follows from the bands and
+wavefunctions you already have. These combine into one number, the
+\emph{plasma frequency} $\omega_p$, and you will compute it.
+\item \textbf{Not by itself:} in a perfect, rigid crystal the conductivity
+is \emph{infinite}. The measured value is finite only because electrons are
+scattered --- at room temperature by the thermal vibrations of the lattice
+--- and the scattering rate is not a ground-state property of the frozen
+crystal. It \emph{can} be computed from first principles, but that needs
+the lattice vibrations and their coupling to the electrons, a substantial
+extension of the code that is outlined, not built, in
+Section~\ref{sec:tau}.
+\end{itemize}
+The one new tool introduced here, the velocity operator, is also the key to
+the optical properties of the next chapter.
+
+\section{Why a perfect crystal does not resist}
+
+A Bloch state $\psi_{n\kk}$ is a stationary state of the periodic
+potential: an electron in it moves through the lattice forever with the
+mean velocity (derived in the next section)
+\begin{equation}
+\mathbf v_{n\kk} = \pdv{\varepsilon_{n\kk}}{\kk}
+\label{eq:groupvel}
+\end{equation}
+--- the group velocity of a wave packet built from states near $\kk$. The
+periodic potential of the ions, however strong, does not scatter it; that
+is the content of Bloch's theorem. In equilibrium the currents of all
+occupied states cancel, because $\varepsilon_{n,-\kk} = \varepsilon_{n\kk}$
+implies $\mathbf v_{n,-\kk} = -\mathbf v_{n\kk}$.
+
+Now apply a uniform electric field $\mathbf E$. The semiclassical equation
+of motion of a Bloch electron (charge $-1$ in atomic units) is
+\begin{equation}
+\frac{\dd\kk}{\dd t} = -\mathbf E :
+\end{equation}
+the force changes the \emph{crystal momentum}, so every electron drifts
+through $\kk$-space at the same rate. The occupied region of the Brillouin
+zone shifts as a whole, the cancellation between $\kk$ and $-\kk$ is lost,
+and a current flows that keeps growing as long as the field is on. Nothing
+in the perfect crystal stops it. A finite, steady current requires
+processes that knock electrons back toward equilibrium: collisions with
+lattice vibrations (phonons), with impurities and defects, and with each
+other. Summarize them, crudely but usefully, by a single \emph{relaxation
+time} $\tau$: the average time an electron travels between collisions.
+
+\section{The velocity operator}
+\label{sec:velocity}
+
+Both this chapter and the next need matrix elements of the electron
+velocity between Bloch states. At fixed $\kk$ your program represents the
+Hamiltonian as a matrix $H_{\kk}$ acting on the coefficients $c(\GG)$ ---
+the Hamiltonian for the periodic functions $u_{n\kk}$. The velocity
+operator in the same representation is simply its derivative,
+\begin{equation}
+\boxed{\;\hat{\mathbf v} = \pdv{H_{\kk}}{\kk}\;}
+\qquad\qquad
+\mathbf v_{mn}(\kk) = \sum_{\GG\GG' ss'} c^{s\,*}_{m\kk}(\GG)\,
+\pdv{H^{ss'}_{\GG\GG'}(\kk)}{\kk}\, c^{s'}_{n\kk}(\GG') .
+\label{eq:velop}
+\end{equation}
+\emph{Why.} Differentiate the eigenvalue $\varepsilon_{n\kk} =
+\braket{u_{n\kk}|H_\kk|u_{n\kk}}$ with respect to $\kk$. Three terms
+appear; the two containing $\partial u/\partial\kk$ add up to
+$\varepsilon_{n\kk}\,\partial_\kk\braket{u_{n\kk}|u_{n\kk}} = 0$ because
+the state stays normalized. What remains is the
+\textbf{Hellmann--Feynman theorem},
+\begin{equation}
+\pdv{\varepsilon_{n\kk}}{\kk} = \Braket{u_{n\kk}|\pdv{H_\kk}{\kk}|u_{n\kk}}
+= \mathbf v_{nn}(\kk),
+\label{eq:hf}
+\end{equation}
+which is Eq.~\eqref{eq:groupvel}: the diagonal matrix element of
+$\partial H_\kk/\partial\kk$ is the group velocity. The off-diagonal
+elements $\mathbf v_{mn}$, $m\ne n$, govern transitions between bands
+(Chapter~\ref{ch:colour}).
+
+\paragraph{Term by term.} Go through the Hamiltonian of
+Chapter~\ref{ch:hamiltonian} and ask where $\kk$ appears.
+\begin{itemize}[leftmargin=2em]
+\item \emph{Kinetic energy} $\tfrac12|\kk+\GG|^2$: derivative $\kk+\GG$.
+This is the momentum, as for a free particle.
+\item \emph{Local potential} $V_{\mathrm{eff,loc}}(\GG-\GG')$: no $\kk$
+dependence, no contribution.
+\item \emph{Nonlocal pseudopotential}: the projectors
+$\tilde\beta_p(\kk+\GG)$ of Eq.~\eqref{eq:betaG} depend on $\kk$, so this
+term \emph{does} contribute. (Physically: a nonlocal potential does not
+commute with the position operator, so velocity is no longer momentum
+alone. Leaving this term out is the classic error in pseudopotential
+optics codes.)
+\end{itemize}
+Writing $\mathbf q = \kk+\GG$ and $\partial_\alpha\tilde\beta_p \equiv
+\partial\tilde\beta_p(\mathbf q)/\partial q_\alpha$ for the Cartesian
+directions $\alpha = x,y,z$, and with the projections
+$P_{n} = \sum_\GG\tilde\beta^*(\mathbf q)\,c_n(\GG)$ of
+Algorithm~\ref{alg:applyh} and their analogues
+$\partial_\alpha P_{n} = \sum_\GG[\partial_\alpha\tilde\beta(\mathbf q)]^*
+c_n(\GG)$ (both are vectors over the composite index: projector $\times$
+spin),
+\begin{equation}
+v^{\alpha}_{mn} = \sum_{\GG s} c^{s\,*}_{m}(\GG)\,(\kk+\GG)_\alpha\,
+c^{s}_{n}(\GG)
+\;+\; (\partial_\alpha P_m)^\dagger D\, P_n
+\;+\; P_m^\dagger D\, (\partial_\alpha P_n).
+\label{eq:vmn}
+\end{equation}
+The derivative of a projector is the derivative of an explicit function,
+$\tilde\beta_p(\mathbf q) \propto \tilde p_{i\ell}(|\mathbf q|)\,
+Y_{\ell m}(\hat{\mathbf q})$: obtain it with automatic differentiation
+(\texttt{jax.jacfwd} of the function that returns the projector table for
+given $\mathbf q$), or with a central difference
+$[\tilde\beta(\mathbf q + \delta\,\hat{\mathbf e}_\alpha)
+- \tilde\beta(\mathbf q - \delta\,\hat{\mathbf e}_\alpha)]/2\delta$,
+$\delta = 10^{-4}$, which is accurate to $10^{-8}$ for these smooth
+functions.
+
+\begin{algorithm}[H]
+\caption{Velocity matrix elements at one $\kk$-point}
+\label{alg:velocity}
+\begin{algorithmic}[1]
+\Function{Velocity}{$C[n,s,\GG]$;\ basis}
+\State $P[n,(s,p)] \gets \sum_\GG \tilde\beta_p^*(\mathbf q)\,C[n,s,\GG]$;\quad
+$DP \gets P\,D^{\mathsf T}$ \Comment{as in \textsc{ApplyH}}
+\For{$\alpha = x, y, z$}
+\State $\partial_\alpha\tilde\beta_p(\mathbf q) \gets$ derivative of the
+projector table with respect to $q_\alpha$
+\State $\partial P[n,(s,p)] \gets \sum_\GG
+[\partial_\alpha\tilde\beta_p(\mathbf q)]^*\,C[n,s,\GG]$
+\State $v^\alpha_{mn} \gets \sum_{\GG s}\overline{C[m,s,\GG]}\; q_\alpha\, C[n,s,\GG]
+\;+\; \sum_{a}\overline{\partial P[m,a]}\,DP[n,a]
+\;+\; \sum_{a}\overline{P[m,a]}\,(\partial P\,D^{\mathsf T})[n,a]$
+\EndFor
+\State \Return $v^\alpha_{mn}$ \Comment{three Hermitian $N_b\times N_b$ matrices}
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{Degenerate bands.} Every band of gold is a Kramers pair, and
+within a degenerate pair the eigensolver returns an arbitrary basis. The
+group velocity of the pair is therefore not an individual diagonal element
+but the $2\times2$ block of $v^\alpha$ within the pair. For gold the
+combined symmetry $\hat P\Theta$ (Section~\ref{sec:symmetry}) forces that
+block to be a multiple of the unit matrix: both partners move with the
+same velocity, and the block is the same in any basis. Use
+$\tfrac12\mathrm{tr}$ of the block for the velocity and
+$\tfrac12\sum_{m,n\in\text{pair}}|v^\alpha_{mn}|^2$ for its square.
+
+\paragraph{Test.} Equation~\eqref{eq:hf} is a complete check of
+Algorithm~\ref{alg:velocity}, nonlocal term included: solve at
+$\kk \pm h\,\hat{\mathbf e}_\alpha$ ($h = 10^{-4}$\,Bohr$^{-1}$) and compare
+$[\varepsilon_n(\kk+h\hat{\mathbf e}_\alpha) -
+\varepsilon_n(\kk-h\hat{\mathbf e}_\alpha)]/2h$ with the pair-averaged
+$v^\alpha_{nn}$. In the reference calculation they agree to
+$10^{-7}$\,a.u.\ for all bands at a generic $\kk$, the matrices are
+Hermitian to rounding error, and the off-diagonal element inside each
+Kramers pair is below $10^{-8}$. Without the nonlocal term the
+discrepancy is $0.1$--$0.3$\,a.u.\ for every band --- as large as the
+velocities themselves.
+
+\section{Conductivity in the relaxation-time approximation}
+
+In a steady field, an electron accumulates the shift $\delta\kk = -\mathbf
+E\,\tau$ before it is scattered. The occupation of state $n\kk$ is then
+that of the equilibrium distribution $f^0$ at the point the electron
+started from,
+\begin{equation}
+f_{n\kk} = f^0(\varepsilon_{n,\kk+\mathbf E\tau})
+\approx f^0(\varepsilon_{n\kk})
++ \pdv{f^0}{\varepsilon}\;\mathbf v_{n\kk}\cdot\mathbf E\,\tau .
+\end{equation}
+The current density is the sum of charge ($-1$) times velocity over all
+occupied states, per unit volume; with our conventions (one electron per
+spinor state, weights $\sum_\kk w_\kk = 1$, cell volume $\Omega$) that is
+$\mathbf j = -\frac{1}{\Omega}\sum_{n\kk}w_\kk f_{n\kk}\mathbf v_{n\kk}$.
+The equilibrium part cancels, and what is left is linear in the field,
+$j_\alpha = \sum_\beta\sigma_{\alpha\beta}E_\beta$, with
+\begin{equation}
+\sigma_{\alpha\beta} = \frac{\tau}{\Omega}\sum_{n\kk} w_\kk
+\Big(-\pdv{f^0}{\varepsilon}\Big)_{\varepsilon_{n\kk}}
+v^\alpha_{n\kk}\,v^\beta_{n\kk} .
+\label{eq:sigmatensor}
+\end{equation}
+The factor $-\partial f^0/\partial\varepsilon$ is a narrow peak at the
+Fermi level (a $\delta$-function at zero temperature): \emph{only
+electrons at the Fermi surface conduct}. In a cubic crystal the tensor is
+isotropic, $\sigma_{\alpha\beta} = \sigma\,\delta_{\alpha\beta}$, and it is
+customary to write
+\begin{equation}
+\boxed{\;
+\sigma = \frac{\omega_p^2\,\tau}{4\pi},
+\qquad
+\omega_p^2 = \frac{4\pi}{\Omega}\sum_{n\kk} w_\kk\,
+\delta(\varepsilon_{n\kk}-\mu)\;\frac{|\mathbf v_{n\kk}|^2}{3}\;}
+\label{eq:plasma}
+\end{equation}
+(atomic units). $\omega_p$ is the \textbf{Drude plasma frequency}. It
+packages everything the band structure contributes to conduction, and it
+is a ground-state quantity your code can deliver.
+
+\paragraph{Sanity check: free electrons.} For a free-electron gas of density
+$n$, with $g(\varepsilon_F) = 3n/2\varepsilon_F$ states per unit energy
+and volume and $v_F^2 = 2\varepsilon_F$, Eq.~\eqref{eq:plasma} gives
+$\omega_p^2 = \tfrac{4\pi}{3}\,g(\varepsilon_F)\,v_F^2 = 4\pi n$ and
+$\sigma = n\tau$ --- in SI units the Drude formula $\sigma = ne^2\tau/m$
+of elementary solid-state physics. For gold with one $6s$ electron per
+atom, $n = 1/\Omega$: $\hbar\omega_p = 9.02$\,eV and
+$v_F = (3\pi^2 n)^{1/3} = 1.39\times10^6$\,m/s. The $d$ electrons, whose
+bands lie entirely below $E_F$, do not conduct.
+
+\paragraph{Evaluating the Fermi-surface sum.} The $\delta$-function is
+replaced by a normalized Gaussian of width $s$,
+$\delta_s(x) = \ee^{-x^2/s^2}/(s\sqrt\pi)$, and the sum is taken over a
+mesh much denser than the SCF mesh, using \textsc{SolveBands} in the fixed
+self-consistent potential (Section~\ref{sec:nscf}). The integrand is
+invariant under the 48 operations of the cubic point group (because it
+contains $|\mathbf v|^2$, not individual components), so it suffices to
+visit the irreducible wedge: group the mesh points into sets related by
+the 48 signed permutations of the Cartesian components, keep one point of
+each set, and give it the weight (size of the set)$/N_\kk$. For a
+$24^3$ mesh that is 413 points instead of 13\,824.
+
+\begin{algorithm}[H]
+\caption{Drude weight, density of states and Fermi velocity}
+\label{alg:drude}
+\begin{algorithmic}[1]
+\State irreducible $\kk$-points and weights $w_\kk$ of an $N^3$
+$\Gamma$-centered mesh
+\For{each $\kk$}
+\State $(\varepsilon, C) \gets$ \Call{SolveBands}{$\kk$};\quad
+$v^\alpha_{mn} \gets$ \Call{Velocity}{$C$}
+\State $V_n \gets \tfrac13\cdot\tfrac12\sum_\alpha\sum_{m,m'\in
+\text{pair}(n)}|v^\alpha_{mm'}|^2$ \Comment{$|\mathbf v_{n\kk}|^2/3$}
+\State store $\varepsilon_{n\kk}$, $V_{n\kk}$, and
+$\tfrac13\sum_\alpha|v^\alpha_{mn}|^2$ for all pairs $m,n$
+\Comment{the last for Chapter~\ref{ch:colour}}
+\EndFor
+\State $g(\mu) \gets \sum_{n\kk}w_\kk\,\delta_s(\varepsilon_{n\kk}-\mu)$
+\Comment{states per Ha per cell}
+\State $\omega_p^2 \gets \dfrac{4\pi}{\Omega}\sum_{n\kk}w_\kk\,
+\delta_s(\varepsilon_{n\kk}-\mu)\,V_{n\kk}$;\quad
+$\langle v_F^2\rangle \gets 3\sum w\,\delta_s V\big/\sum w\,\delta_s$
+\end{algorithmic}
+\end{algorithm}
+
+\section{Results for gold}
+
+Reference calculation: fixed potential of Case~B (Chapter~\ref{ch:verify};
+LDA, spin--orbit coupling on), $\Gamma$-centered meshes reduced to the
+irreducible wedge.
+\begin{center}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+ & \multicolumn{2}{c}{this calculation} & free electrons & experiment\\
+ & $24^3$ & $40^3$ & ($6s^1$) & \\
+\midrule
+$g(E_F)$ (states/eV/atom) & \GF & \GFb & $0.27$ & $\approx 0.3$\\
+r.m.s.\ Fermi velocity ($10^6$\,m/s) & \VF & \VFb & $1.39$ & $\approx 1.4$\\
+$\hbar\omega_p$ (eV) & \WP & \WPb & $9.02$ & $8.45$--$9.0$\\
+$\sigma/\tau$ ($10^{6}$\,S\,m$^{-1}$\,fs$^{-1}$) & \ST & \STb & $1.66$ & ---\\
+\bottomrule
+\end{tabular}
+\end{center}
+(Gaussian width $s = 0.005$\,Ha; changing $s$ between $0.003$ and
+$0.01$\,Ha moves $\hbar\omega_p$ by about $0.1$--$0.2$\,eV on these
+meshes, which is the accuracy of the numbers. Experimental values:
+$g(E_F)$ from the electronic specific heat coefficient
+$\gamma = 0.69$\,mJ\,mol$^{-1}$K$^{-2}$, which includes an enhancement
+by the electron--phonon interaction of the order of 10\%; $\omega_p$
+from Drude fits to optical data, $8.45$\,eV (Olmon \emph{et al.}, 2012)
+to $9.0$\,eV (Johnson and Christy, 1972).) Three
+things to take from the table. First, gold conducts like a free-electron
+metal with close to one electron per atom: the effective number of
+carriers, $\omega_p^2\Omega/4\pi$, comes out as \NEFF{}. The single band
+crossing $E_F$ in Fig.~\ref{fig:bands} is the $6s$ band. Second,
+Kohn--Sham theory is on firm ground here: unlike the position of the $d$
+bands, the Fermi surface of a simple metal is described well. Third, the
+band structure alone fixes the ratio $\sigma/\tau$ --- but not $\sigma$.
+
+\paragraph{Unit conversions.} One atomic unit of conductivity is
+$e^2/(a_0\hbar) = 4.5998\times10^{6}$\,S/m; of time,
+$\hbar/\mathrm{Ha} = 0.024189$\,fs; of velocity,
+$2.1877\times10^{6}$\,m/s. Example: $\hbar\omega_p = 8.5$\,eV is
+$\omega_p = 0.3124$\,a.u.; with $\tau = 30$\,fs $= 1240$\,a.u.,
+$\sigma = \omega_p^2\tau/4\pi = 9.63$\,a.u.\ $= 4.4\times10^7$\,S/m.
+
+\section{The missing ingredient: the relaxation time}
+\label{sec:tau}
+
+\paragraph{From experiment.} Turn the argument around: the measured
+room-temperature resistivity and the computed plasma frequency give
+\begin{equation}
+\tau = \frac{4\pi\sigma}{\omega_p^2} \approx \TAU\,\mathrm{fs},
+\qquad
+\ell = v_F\,\tau \approx \MFP\,\mathrm{nm} .
+\end{equation}
+An electron at the Fermi surface of gold travels about a hundred lattice
+constants between collisions: the picture of nearly free Bloch waves,
+occasionally scattered, is self-consistent. (This is also why thin gold
+films and nanowires conduct worse than bulk gold: once the sample is not
+much thicker than $\ell$, surface scattering matters.)
+
+\paragraph{From first principles (outline only).} At room temperature
+$\tau$ in a pure metal is set by electron--phonon scattering. Above the
+Debye temperature (about 165\,K for gold) the result of the full theory is
+remarkably simple,
+\begin{equation}
+\frac{1}{\tau} = 2\pi\,\lambda_{\mathrm{tr}}\,k_BT
+\qquad\Longrightarrow\qquad
+\rho(T) = \frac{4\pi}{\omega_p^2}\cdot 2\pi\,\lambda_{\mathrm{tr}}\,k_BT ,
+\label{eq:rhoT}
+\end{equation}
+(atomic units; $k_BT = 9.34\times10^{-4}$\,Ha at 295\,K): the resistivity
+is linear in temperature, as observed, with a slope fixed by $\omega_p$
+and one dimensionless number, the \emph{transport electron--phonon
+coupling constant} $\lambda_{\mathrm{tr}}$. Inserting the measured
+resistivity and the computed $\omega_p$ gives
+$\lambda_{\mathrm{tr}}\approx\LAMTR$ --- a small value: gold is a good
+conductor because its electrons couple weakly to its lattice vibrations
+(the same reason it is not a superconductor at any accessible
+temperature). This is exactly how ``empirical'' coupling constants are
+extracted in the literature: Savrasov and Savrasov (1996, Eq.~23 there)
+use $\lambda_{\mathrm{tr}} = c_1\omega_p^2/8\pi^2k_B$ with $c_1$ the
+measured slope of $\rho(T)$, which is Eq.~\eqref{eq:rhoT} solved for
+$\lambda_{\mathrm{tr}}$, and find $0.12$ for copper (and values above 1
+for good superconductors such as lead and niobium).
+
+Computing $\lambda_{\mathrm{tr}}$ is a research-grade but well-defined DFT
+calculation. It requires, beyond this document: (i) forces on atoms
+(derivatives of the total energy with respect to atomic positions --- in
+JAX, \texttt{grad} of your energy function); (ii) the phonon frequencies
+and displacement patterns, from the forces in supercells with one atom
+displaced, or from density-functional perturbation theory; (iii) the
+change of the self-consistent potential caused by each phonon, and its
+matrix elements between Bloch states at the Fermi surface; (iv) a double
+Fermi-surface integral of those matrix elements weighted by the change of
+velocity in each scattering event. Every step uses machinery you now
+understand --- supercells, fixed-potential band calculations, velocity
+matrix elements, Fermi-surface sums --- but none of it has been carried
+out for this document, and Eq.~\eqref{eq:rhoT} is quoted from the
+literature, not derived. That the programme works is established: a
+published first-principles Boltzmann calculation for gold (Gunst, Blom
+and Stokbro, 2018) obtains $27.0$\,n$\Omega$\,m at 300\,K against a
+measured $20.5$, and reproduces the ordering Au $>$ Cu $>$ Ag. The residual resistivity at low temperature is different again:
+it is caused by impurities and defects and is a property of the sample,
+not of gold.
+
+\begin{keybox}{Summary}
+The DC conductivity factorizes, $\sigma = \omega_p^2\tau/4\pi$. The plasma
+frequency $\omega_p$ is a Fermi-surface average of squared group
+velocities, computed from $\hat{\mathbf v} = \partial H_\kk/\partial\kk$
+(kinetic \emph{and} nonlocal-pseudopotential terms) in a fixed-potential
+calculation on a dense mesh; for gold it is that of one nearly free
+electron per atom. The relaxation time $\tau$ is not a property of the
+perfect frozen crystal: take it from experiment, or compute the
+electron--phonon coupling --- a separate project.
+\end{keybox}
+
+\begin{gpubox}{GPU/JAX notes}
+The $\kk$-points of the dense mesh are independent: this is
+\textsc{SolveBands} batched over $\kk$ (\texttt{vmap}, in chunks), followed
+by three \texttt{einsum}s per $\kk$ for the velocity matrices. The
+projector derivative is one \texttt{jax.jacfwd} of a function you already
+have; because it is evaluated once per $\kk$-point, its cost is
+irrelevant. Store $\varepsilon_{n\kk}$ and the real arrays
+$\tfrac13\sum_\alpha|v^\alpha_{mn}|^2$ --- a few megabytes --- and do all
+of the analysis of this chapter and the next on the host.
+\end{gpubox}

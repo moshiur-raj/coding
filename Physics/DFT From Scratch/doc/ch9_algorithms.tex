@@ -1,0 +1,613 @@
+\chapter{The Algorithms}
+\label{ch:algorithms}
+
+Everything so far defined \emph{what} to compute. This chapter gives the
+numerical engines: iterative eigensolvers for the linear problem at fixed
+potential, and mixing schemes for the nonlinear self-consistency, with full
+pseudocode. Notation: at each $\kk$, $H_{\kk}$ is the (matrix-free)
+Hamiltonian on spinor coefficient vectors of length $2N_G$; we seek the
+lowest $N_b$ eigenpairs.
+
+\section{Setting up a $\kk$-point: the basis}
+\label{sec:setup}
+
+Everything at a given $\kk$ is expressed on its own plane-wave sphere.
+Building it is pure integer bookkeeping, done once per geometry.
+
+\begin{algorithm}[H]
+\caption{Plane-wave basis and projectors at one $\kk$-point}
+\label{alg:basis}
+\begin{algorithmic}[1]
+\Function{BuildBasis}{$\kk_{\mathrm{frac}}$, $E_{\mathrm{cut}}$}
+\State $M_i \gets \big\lceil \sqrt{2E_{\mathrm{cut}}}\,|\mathbf a_i|/2\pi
+\big\rceil + 1$ \Comment{no $\GG$ in the sphere has $|m_i| > M_i$}
+\State \textbf{for all} integer triples $\mathbf m$ with $|m_i|\le M_i$:
+$\qq \gets (\kk_{\mathrm{frac}} + \mathbf m)\,B$;\quad keep $\mathbf m$ if
+$\tfrac12|\qq|^2 \le E_{\mathrm{cut}}$
+\State store for each kept plane wave: $\mathbf m$;\ $\qq$;\ $T_{\qq} =
+\tfrac12|\qq|^2$;\ FFT-box index
+$\mathrm{idx} = \mathrm{ravel}(m_1 \bmod N_1,\, m_2 \bmod N_2,\, m_3 \bmod N_3)$
+\State projectors $\tilde\beta^{a}_{i\ell m}(\qq)$ from
+Eqs.~\eqref{eq:betaG}, \eqref{eq:hghprojG}, Table~\ref{tab:realylm}
+\Comment{array $[N_{\mathrm{proj}}, N_G]$}
+\State \Return basis record (padded to $N_G^{\max}$ with a mask when
+batching over $\kk$)
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+Here $B$ is the matrix whose rows are $\mathbf b_i$. The ``$\bmod N_i$''
+places negative frequencies where the FFT library expects them (wrapped
+order). Sort the kept plane waves in any fixed order you like; nothing
+depends on it. Two checks: the count should be close to
+$\Omega(2E_{\mathrm{cut}})^{3/2}/6\pi^2$, and at $\Gamma$ the set must be
+symmetric under $\mathbf m\to-\mathbf m$.
+
+\section{Applying the Hamiltonian}
+\label{sec:applyh}
+
+The eigensolver below never sees a matrix, only this function. It is
+Chapter~\ref{ch:hamiltonian} condensed into one routine; $C$ holds any
+number of spinor vectors (bands) at one $\kk$.
+
+\begin{algorithm}[H]
+\caption{Matrix-free Hamiltonian application at one $\kk$-point}
+\label{alg:applyh}
+\begin{algorithmic}[1]
+\Function{ApplyH}{$C[n, s, \GG]$;\ basis;\ $V_{\mathrm{eff,loc}}(\rr)$,
+$\mathbf B_{\mathrm{xc}}(\rr)$ on the grid}
+\State $Y \gets T_{\qq}\, C$ \Comment{kinetic: elementwise, same for both $s$}
+\State $u[n,s,\rr] \gets \mathrm{IFFT}\big(\text{scatter } C[n,s,\cdot]
+\text{ into a zero box at idx}\big)$ \Comment{to real space}
+\State $v[n,s,\rr] \gets V_{\mathrm{eff,loc}}(\rr)\,u[n,s,\rr]
++ \sum_{s'}\big(\mathbf B_{\mathrm{xc}}(\rr)\cdot\bm\sigma\big)_{ss'}\,
+u[n,s',\rr]$ \Comment{second term absent for gold}
+\State $Y \mathrel{+}= \text{gather } \mathrm{FFT}(v) \text{ at idx}$
+\Comment{back to the sphere; discard everything outside it}
+\State $P[n,s,p] \gets \sum_{\GG} \tilde\beta_p^{*}(\GG)\, C[n,s,\GG]$
+\Comment{projections, $p = (a,i,\ell,m)$}
+\State $Q[n,s,p] \gets \sum_{s'p'} D_{(p s),(p' s')}\, P[n,s',p']$
+\Comment{coupling matrix, Section~\ref{sec:lsmatrix}}
+\State $Y \mathrel{+}= \sum_p \tilde\beta_p(\GG)\, Q[n,s,p]$
+\State \Return $Y$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+The FFT normalizations cancel between lines 3 and 5 (use the library's
+unnormalized forward and $1/N$-normalized inverse transform and forget
+about them here). Test it before anything else: for random vectors
+$\phi,\psi$ the two numbers $\braket{\phi|\hat H\psi}$ and
+$\braket{\psi|\hat H\phi}^*$ must agree to rounding error, and for a small
+cutoff the matrix assembled by applying \textsc{ApplyH} to unit vectors
+must have the same eigenvalues as the iterative solver returns.
+
+\section{Why iterative eigensolvers}
+
+$H_{\kk}$ has dimension $2N_G \sim 5\times10^3$; dense diagonalization
+($O(N^3) \sim 10^{11}$ flops \emph{per $\kk$-point per SCF step}) is possible
+but wasteful, and becomes impossible for larger cells you will want later. We
+need only the lowest $N_b \sim 24$ of $\sim 5\times10^3$ eigenpairs of a Hermitian
+operator we can apply fast. That is the textbook setting for
+\emph{preconditioned block Krylov / subspace iteration} methods. Two
+GPU-relevant choices:
+
+\begin{itemize}[leftmargin=2em]
+\item \textbf{Blocked Davidson}: expands a subspace with preconditioned
+residuals; robust, standard in plane-wave codes.
+\item \textbf{LOBPCG} (Locally Optimal Block Preconditioned Conjugate
+Gradient): keeps a fixed-size subspace $[X, W, P]$ (current block,
+preconditioned residuals, previous search directions) and Rayleigh--Ritz
+minimizes within it. Fixed memory, fixed shapes, everything expressed as
+dense GEMMs on tall matrices --- \emph{the} eigensolver for JAX/GPU. We make
+it the primary recommendation.
+\end{itemize}
+
+\section{The preconditioner}
+
+Iterative methods converge at a rate set by the spread of the spectrum. A
+plane-wave Hamiltonian's spectrum is dominated by kinetic energy
+$\tfrac12|\kk+\GG|^2$, which ranges up to $E_{\mathrm{cut}}$; but we only
+care about the lowest few eV. The cure is a diagonal preconditioner that
+approximately inverts the kinetic term at high $\GG$ while leaving low $\GG$
+alone. The classic Teter--Payne--Allan form, applied elementwise to a
+residual $r(\GG)$ with $x = \tfrac12|\kk+\GG|^2 / E_{\mathrm{kin}}(\psi)$:
+\begin{equation}
+K(x) = \frac{27 + 18x + 12x^2 + 8x^3}
+{27 + 18x + 12x^2 + 8x^3 + 16 x^4},
+\label{eq:teter}
+\end{equation}
+smoothly interpolating between $1$ (small $x$) and $1/(2x)$ (large $x$);
+$E_{\mathrm{kin}}(\psi) = \sum_{\GG s}\tfrac12|\kk{+}\GG|^2 |c^s(\GG)|^2$ is
+the kinetic energy of the band being corrected.
+A simpler alternative, $K = 1/\max\big(1, \tfrac12|\kk+\GG|^2 - \tau\big)$
+with shift $\tau \approx$ current Ritz value, also works. The preconditioner
+is elementwise and free; it typically cuts iteration counts by
+$5$--$10\times$.
+
+\section{LOBPCG}
+
+The idea in one paragraph. Suppose $X$ holds your current guesses for the
+lowest $N_b$ eigenvectors. The residual $R = HX - X\Lambda$ tells you in
+which direction each guess is wrong. Rather than taking a step of some
+guessed length along $R$, build the small subspace spanned by the current
+vectors $X$, the (preconditioned) residuals $W$, and the previous step's
+update directions $P$, and solve the eigenproblem \emph{exactly inside that
+subspace} --- a $3N_b\times3N_b$ dense diagonalization, called the
+\textbf{Rayleigh--Ritz} step. The best $N_b$ vectors of the subspace
+become the new $X$. Because the subspace contains the old $X$, the Ritz
+values can only go down; because it contains $P$, the method has the
+memory that makes conjugate gradients fast.
+
+Written naively, with $S = [X, W, P]$ taken as it comes, the Rayleigh--Ritz
+step is a \emph{generalized} eigenproblem $S^\dagger H S\, y = \theta\,
+S^\dagger S\, y$, and it is the weak point of the method: near convergence
+$W$ and $P$ shrink and become almost parallel to each other, the overlap
+matrix $S^\dagger S$ becomes numerically singular, and the iteration falls
+apart (details below). The cure is to keep the three blocks
+\emph{orthonormal and mutually orthogonal at all times}, so that
+$S^\dagger S = \mathbf 1$ and the Rayleigh--Ritz step is an ordinary
+Hermitian eigenproblem. One small utility does all the orthonormalizing.
+
+\begin{algorithm}[H]
+\caption{Orthonormalize the columns of $V$, discarding (zeroing) linearly
+dependent directions; optionally carry $HV$ along}
+\label{alg:ortho}
+\begin{algorithmic}[1]
+\Function{Orthonormalize}{$V$, $\tau$ [, $HV$]}
+\State $d_j \gets \|V_{:,j}\|$ (set $d_j = 1$ where the column is zero)
+\Comment{column scales}
+\State $G \gets \mathrm{diag}(d)^{-1}\, V^\dagger V\, \mathrm{diag}(d)^{-1}$
+\Comment{small Hermitian matrix with unit diagonal; double precision}
+\State $(\sigma, U) \gets \mathrm{eigh}(G)$
+\Comment{$\sigma_j \ge 0$ measures how independent direction $j$ is}
+\State $T \gets \mathrm{diag}(d)^{-1}\; U\;
+\mathrm{diag}\big(\sigma_j > \tau\ ?\ \sigma_j^{-1/2} : 0\big)$
+\State \Return $V\,T$ [and $HV\,T$]
+\Comment{columns are orthonormal, or exactly zero}
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+Because the same matrix $T$ multiplies $V$ and $HV$, the pair stays
+consistent ($HV$ remains the image of $V$ under $\hat H$) without a new
+Hamiltonian application. Dependent directions are not removed --- that
+would change array shapes --- but replaced by zero columns, which the
+eigensolver then ignores. There is no failure branch, unlike a Cholesky
+factorization, which simply breaks down on a singular matrix.
+
+\begin{algorithm}[H]
+\caption{LOBPCG for the lowest $N_b$ spinor bands at one $\kk$
+(all $\kk$ run batched)}
+\label{alg:lobpcg}
+\begin{algorithmic}[1]
+\State $X \gets$ initial block $[2N_G \times N_b]$ (previous SCF
+step's eigenvectors; first step: random complex numbers divided by
+$1 + \tfrac12|\kk{+}\GG|^2$)
+\State $X \gets$ \Call{Orthonormalize}{$X$, $10^{-12}$}, twice;\quad
+$HX \gets$ \Call{ApplyH}{$X$}
+\State $(\Lambda, Y) \gets \mathrm{eigh}(X^\dagger HX)$;\quad
+$X \gets XY$;\ $HX \gets HX\,Y$ \Comment{start from Ritz vectors}
+\State $P \gets 0$;\ $HP \gets 0$ \Comment{same shape as $X$}
+\For{$t = 1, \dots, t_{\max}$}
+\State $R \gets HX - X\,\mathrm{diag}(\Lambda)$;\quad
+$r_n \gets \|R_{:,n}\|$ \Comment{residual of each band}
+\State \textbf{if} $r_n < \epsilon$ for all bands that are needed
+\textbf{then stop}
+\State $W \gets K \circ R$ \Comment{preconditioner Eq.~\eqref{eq:teter},
+each column with its own $E_{\mathrm{kin}}$}
+\State $W_{:,n} \gets 0$ where $r_n < \epsilon/10$
+\Comment{``soft locking'': converged bands get no new direction}
+\State \textbf{twice:}\ \ $W \gets W - Q\,(Q^\dagger W)$ with $Q = [X, P]$;\quad
+$W \gets$ \Call{Orthonormalize}{$W$, $10^{-10}$}
+\State $HW \gets$ \Call{ApplyH}{$W$} \Comment{the only Hamiltonian
+application per iteration}
+\State $S \gets [X, W, P]$;\quad $A \gets S^\dagger\,[HX, HW, HP]$;\quad
+$A \gets \tfrac12(A + A^\dagger)$ \Comment{$3N_b\times3N_b$, double precision}
+\State $A_{jj} \gets A_{jj} + \Lambda_{\mathrm{big}}$ for every $j$ whose
+column of $S$ is zero \Comment{$\Lambda_{\mathrm{big}} = 10^6$\,Ha: park
+empty directions out of the way}
+\State $(\Theta, Y) \gets \mathrm{eigh}(A)$;\quad
+$\Lambda \gets \Theta_{1..N_b}$;\quad keep the first $N_b$ columns of $Y$,
+split by rows as $(Y_X; Y_W; Y_P)$
+\State $P \gets W Y_W + P\, Y_P$;\quad $HP \gets HW\, Y_W + HP\, Y_P$
+\Comment{the step just taken}
+\State $X \gets X Y_X + P$;\quad $HX \gets HX\, Y_X + HP$
+\Comment{new Ritz vectors; no extra $H$ applications}
+\State \textbf{twice:}\ \ $C \gets X^\dagger P$;\ \ $P \gets P - XC$;\ \
+$HP \gets HP - HX\,C$;\ \
+$(P, HP) \gets$ \Call{Orthonormalize}{$P$, $10^{-6}$, $HP$}
+\Comment{$P \perp$ new $X$, orthonormal}
+\EndFor
+\State \Return $\Lambda$ (eigenvalues, ascending), $X$ (eigenvectors)
+\end{algorithmic}
+\end{algorithm}
+
+Note the bookkeeping: $HX$ and $HP$ are updated by the same linear
+combinations as $X$ and $P$, so the expensive operation is applied only to
+$W$ --- and it is applied \emph{after} $W$ has been orthogonalized, so that
+$HW$ is exact for the vectors actually used. The first iteration needs no
+special case: $P = 0$ contributes zero columns, which line 13 parks. The
+new $X$ is orthonormal because $S$ is and the columns of $Y$ are.
+
+Two remarks on the tolerance $\epsilon$. In a fixed-potential calculation
+(Section~\ref{sec:nscf}) it is the accuracy you want, typically
+$10^{-8}$\,Ha, and the loop stops when it is reached. Inside the SCF loop
+only a fixed, small number of iterations is done per step; there set
+$\epsilon = 0$, so that nothing is ever locked and there is no stopping
+test --- which is also what a jitted program with a static iteration count
+wants.
+
+\paragraph{Why ``twice'' appears twice.} Lines 10 and 17 each repeat a
+projection and an orthonormalization. This is not belt and braces.
+\textsc{Orthonormalize} divides by $\sqrt{\sigma_j}$, which amplifies
+rounding errors by up to $\tau^{-1/2}$ ($10^{5}$ for $W$, $10^{3}$ for
+$P$, on top of the rescaling by the column norms, which for a converged
+band are of order $10^{-10}$). After a single pass a nearly dependent
+block is therefore orthonormal only to about $10^{-10}$, not $10^{-16}$.
+The Rayleigh--Ritz step \emph{assumes} $S^\dagger S = \mathbf 1$, so the
+defect is inherited by the new $X$ and grows from one iteration to the
+next. The second pass starts from an almost orthonormal block, amplifies
+nothing, and brings the defect down to rounding level. For $P$ the second
+pass costs two small matrix products and no Hamiltonian application,
+because $HP$ is carried along. Keep both passes: with a single pass on $P$
+the iteration is fine while it converges and then, some tens of iterations
+\emph{after} reaching rounding-level residuals, loses orthogonality and
+diverges. (This was found the hard way: an implementation written from an
+earlier version of this text diverged on the cosine-potential test of
+Chapter~\ref{ch:verify}, Stage~1, while passing all tests on gold.)
+
+\paragraph{Numerical stability --- read this before simplifying anything.}
+LOBPCG as usually presented in three lines (take $S = [X, W, P]$ as is,
+Cholesky-factorize $S^\dagger S$, solve) is a trap. It behaves perfectly
+for the first ten or twenty iterations, which is all an SCF step uses; then,
+once some bands are converged to rounding error, it \emph{diverges} --- not
+to a slightly wrong answer but to eigenvalues of $-10^{3}$\,Ha and far
+beyond --- usually without any error being raised. For the gold
+Hamiltonian of this document, in double precision, this happens within
+30--100 iterations at ordinary $\kk$-points, i.e.\ exactly in the tightly
+converged band-structure and topology calculations. The mechanism is worth
+understanding, because it defeats the obvious repairs too (for instance,
+replacing Cholesky by an eigendecomposition of $S^\dagger S$ with a small
+cutoff): when $W$ and $P$ are nearly parallel, the Ritz coefficients $Y$
+become huge ($10^5$) with opposite signs, the new $P$ is a small difference
+of large vectors, and the stored $HP$ --- updated by recurrence, never
+recomputed --- stops being the image of $P$ under $\hat H$. That
+inconsistency is amplified at every iteration, leaks into $HX$, and from
+then on the ``Rayleigh quotients'' are no longer bounded below by the true
+lowest eigenvalue. The design of Algorithm~\ref{alg:lobpcg} removes the
+cause: all coefficient matrices are $O(1)$ because $S$ is orthonormal; the
+only block whose image is obtained by recurrence, $P$, is transformed
+exclusively by well-conditioned operations (line 17 discards directions
+below $10^{-6}$ instead of amplifying them); and nearly dependent
+directions in $W$ are discarded \emph{before} $\hat H$ is applied. In
+tests on the gold Hamiltonian --- $\Gamma$, $X$, $L$, $W$, $K$ and generic
+$\kk$, with and without SOC, several random starts each --- and on the
+highly degenerate nearly-free-electron problems of Stage~1, with
+$\epsilon = 10^{-10}$, $10^{-6}$ and $0$, this version converged in every
+case and stayed converged (eigenvalues within $2\times10^{-9}$\,Ha of dense
+diagonalization, $X^\dagger X = \mathbf 1$ to $10^{-13}$) for 400
+iterations. One thing it does not promise: once the residuals have
+reached the rounding floor ($10^{-9}$--$10^{-10}$\,Ha for a level with
+many degenerate partners) they wander there instead of decreasing, so ask
+for $\epsilon \ge 10^{-9}$\,Ha and stop when you get it.
+
+\paragraph{What to expect.} For gold with $N_b = 20$ spinor bands and a
+random start, the residuals of the lowest 14 bands fall below
+$10^{-9}$\,Ha in 25--45 iterations; the eigenvalues are converged to
+$10^{-10}$\,Ha well before that (the eigenvalue error is quadratic in the
+residual). The top few bands of the block always converge slowest ---
+which is why $N_b$ should exceed the number of bands you need by a buffer
+of four or more.
+
+\paragraph{How many iterations?} Inside an SCF loop you do \emph{not} need
+tight convergence: 2--4 LOBPCG iterations per SCF step suffice (after
+$\sim8$ in the very first step, which starts from random vectors), because
+the potential will move anyway and the residuals keep shrinking from one
+SCF step to the next. Warm-starting from the previous step's $X$ is what
+makes the whole calculation fast.
+
+\paragraph{Blocked Davidson (alternative).} Expand $V \gets [V, K\circ R]$ up
+to a max subspace ($\sim 3 N_b$), Rayleigh--Ritz (Algorithms~\ref{alg:lobpcg}
+and \ref{alg:ortho} serve as building blocks), restart with Ritz vectors.
+Same kernels, but the growing/shrinking subspace means dynamic shapes ---
+awkward under JIT; if you implement it, fix the schedule (e.g.\ always
+exactly two expansions per restart) so shapes are static.
+
+\section{Occupations, density, and the SCF loop}
+
+After diagonalization at all $\kk$: find $\mu$, set occupations, and
+accumulate the density matrix on the grid.
+
+\begin{algorithm}[H]
+\caption{Fermi level and occupations}
+\label{alg:fermi}
+\begin{algorithmic}[1]
+\Function{Occupy}{$\varepsilon_{n\kk}$, $w_\kk$, $N_e$, $\sigma$}
+\State $\mu_{\mathrm{lo}} \gets \min\varepsilon - 10\sigma$;\quad
+$\mu_{\mathrm{hi}} \gets \max\varepsilon + 10\sigma$
+\For{$80$ iterations} \Comment{fixed count: interval shrinks by $2^{80}$}
+\State $\mu \gets \tfrac12(\mu_{\mathrm{lo}}+\mu_{\mathrm{hi}})$;\quad
+$N(\mu) \gets \sum_{n\kk} w_\kk\, f\big((\varepsilon_{n\kk}-\mu)/\sigma\big)$
+\State \textbf{if} $N(\mu) > N_e$ \textbf{then} $\mu_{\mathrm{hi}}\gets\mu$
+\textbf{else} $\mu_{\mathrm{lo}}\gets\mu$
+\EndFor
+\State $x_{n\kk} \gets (\varepsilon_{n\kk}-\mu)/\sigma$;\quad
+$f_{n\kk} \gets f(x_{n\kk})$;\quad
+$S \gets \sum_{n\kk} w_\kk\, s(x_{n\kk})$
+\State \Return $\mu$, $f$, $S$ \Comment{entropy term of the free energy is
+$-\sigma S$}
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{Density matrix from the spinor bands}
+\label{alg:density}
+\begin{algorithmic}[1]
+\State $n_{\alpha\beta}(\rr) \gets 0$
+\For{each $\kk$ (in chunks), each band $n$}
+\State $u^{s}(\rr) \gets \dfrac{N_{\mathrm{grid}}}{\sqrt\Omega}\,
+\mathrm{IFFT}\big(\text{scatter } c^{s}_{n\kk}\big)$ for $s =
+\uparrow,\downarrow$ \Comment{normalization of Eq.~\eqref{eq:fourierconv}}
+\State $n_{\alpha\beta}(\rr) \mathrel{+}= w_\kk f_{n\kk}\,
+u^{\alpha}(\rr)\,\big[u^{\beta}(\rr)\big]^{*}$
+\EndFor
+\State $n \gets n_{\uparrow\uparrow}+n_{\downarrow\downarrow}$;\quad
+$m_x \gets 2\,\mathrm{Re}\,n_{\uparrow\downarrow}$;\
+$m_y \gets -2\,\mathrm{Im}\,n_{\uparrow\downarrow}$;\
+$m_z \gets n_{\uparrow\uparrow}-n_{\downarrow\downarrow}$
+\end{algorithmic}
+\end{algorithm}
+
+The check: $\frac{\Omega}{N_{\mathrm{grid}}}\sum_{\rr} n(\rr) = N_e$ to
+rounding error, every iteration. For gold $\mathbf m$ must come out zero
+to rounding error \emph{provided} both members of every Kramers pair are
+equally occupied and you have either both $\pm\kk$ in the mesh or the
+doubled weights of Section~\ref{sec:symmetry}; if you skip the
+$\mathbf m$ machinery entirely for a first version, accumulate only
+$n = \sum |u^\uparrow|^2 + |u^\downarrow|^2$.
+
+\subsection{Why simple iteration diverges for metals: charge sloshing}
+
+The naive update $n_{\mathrm{in}}^{(m+1)} = n_{\mathrm{out}}^{(m)}$ diverges
+whenever the dielectric response is strong. To see why, perturb the input
+density by $\delta n_{\mathrm{in}}$. The potential changes by
+$K_{\mathrm{Hxc}}\,\delta n_{\mathrm{in}}$ (dominated by the Hartree
+kernel $4\pi/G^2$), and the electrons respond to that with
+$\delta n_{\mathrm{out}} = \chi_0 K_{\mathrm{Hxc}}\,\delta n_{\mathrm{in}}$,
+where $\chi_0$ is the density response of the non-interacting system. So an
+error in the input is multiplied by $\chi_0 K_{\mathrm{Hxc}}$ each
+iteration. In a metal $\chi_0(G\to0) \to -g(\varepsilon_F)$, a finite
+negative number, so for a Fourier component of wavevector $G$ the
+multiplier is $\approx -k_{TF}^2/G^2$ with $k_{TF}^2 = 4\pi
+g(\varepsilon_F)$: negative (the error changes sign --- charge
+\emph{sloshes} back and forth) and larger than one in magnitude whenever
+$G < k_{TF}$ (the oscillation grows). Simple linear mixing
+$n_{\mathrm{in}} \gets n_{\mathrm{in}} + A\,R$ multiplies the error by
+$1 - A\,(1 + k_{TF}^2/G^2)$ instead, which is stable only if
+$A < 2/(1 + k_{TF}^2/G_{\min}^2)$ --- tiny for a long cell.
+
+How bad is it for us? In the gold primitive cell the smallest nonzero
+reciprocal vector is $|\mathbf b_i| = 1.41$\,Bohr$^{-1}$, larger than
+$k_{TF} \approx 0.9$\,Bohr$^{-1}$, so even plain mixing with
+$A \approx 0.5$ converges. Measured on a small gold test case (scalar
+relativistic, $E_{\mathrm{cut}} = 20$\,Ha, $4^3$ mesh, iterations to
+$\|R\| < 10^{-7}$): plain mixing with $A = 0.5$ needs 24 iterations, with
+$A = 0.8$ it has not converged after 60, and with $A = 1$ it does not
+converge at all (the $d$ electrons make gold's true screening stronger
+than the free-electron estimate of $k_{TF}$); Kerker mixing with $A = 0.8$
+needs 16; Kerker--Pulay needs 10. Sloshing becomes the dominant problem the
+moment you build a supercell or a slab (a ten-layer slab with vacuum has
+$G_{\min} \approx 0.1$\,Bohr$^{-1}$). Implement the two standard fixes now, used
+together, so the code is ready:
+
+\paragraph{(a) Kerker preconditioning.} Damp the long-wavelength part of the
+density update in Fourier space:
+\begin{equation}
+\delta n(\GG) \;\gets\; A\, \frac{G^2}{G^2 + k_{TF}^2}\; \delta n(\GG),
+\qquad k_{TF}^2 = 4\pi\, g(\varepsilon_F) \ \ (\text{use } k_{TF} \approx
+1\ \mathrm{Bohr}^{-1},\ A \approx 0.8).
+\label{eq:kerker}
+\end{equation}
+This is precisely the inverse of the factor $1 + k_{TF}^2/G^2$ found above:
+after preconditioning, every wavelength converges at the same rate.
+
+\paragraph{(b) Pulay / Anderson mixing (DIIS).} Keep the last $M \sim 8$
+pairs of (input density, residual $R^{(m)} = n_{\mathrm{out}}^{(m)} -
+n_{\mathrm{in}}^{(m)}$); find the linear combination of past inputs whose
+extrapolated residual is smallest:
+\begin{equation}
+\min_{\{\gamma\}} \Big\| \sum_m \gamma_m R^{(m)} \Big\|^2
+\quad \text{s.t.} \sum_m \gamma_m = 1
+\;\;\Longrightarrow\;\;
+\begin{pmatrix} \mathsf{B} & \mathbf 1\\ \mathbf 1^{\mathsf T} & 0
+\end{pmatrix}
+\begin{pmatrix} \bm\gamma \\ \lambda\end{pmatrix}
+= \begin{pmatrix}\mathbf 0\\ 1\end{pmatrix},
+\qquad
+\mathsf B_{mm'} = \braket{R^{(m)} | R^{(m')}},
+\end{equation}
+then update
+\begin{equation}
+n_{\mathrm{in}}^{(\mathrm{new})}
+= \sum_m \gamma_m\Big[ n_{\mathrm{in}}^{(m)}
++ \mathcal K\, R^{(m)} \Big],
+\label{eq:pulayupdate}
+\end{equation}
+with $\mathcal K$ the Kerker operator \eqref{eq:kerker}. The logic: if the
+residual depended linearly on the input, the combination
+$\sum_m\gamma_m n_{\mathrm{in}}^{(m)}$ would have residual
+$\sum_m\gamma_m R^{(m)}$, the smallest reachable from the history; one
+preconditioned step is then taken from there.
+
+\begin{algorithm}[H]
+\caption{Kerker-preconditioned Pulay mixing (all arrays in Fourier space)}
+\label{alg:pulay}
+\begin{algorithmic}[1]
+\Function{Mix}{$n_{\mathrm{in}}(\GG)$, $R(\GG)$, history}
+\State append $(n_{\mathrm{in}}, R)$ to the history; drop the oldest pair if
+more than $M$ are stored
+\State $\mathsf B_{mm'} \gets \mathrm{Re}\sum_{\GG\ne0}
+\dfrac{4\pi}{G^2}\,\big[R^{(m)}(\GG)\big]^{*} R^{(m')}(\GG)$;\quad
+$\mathsf B \gets \mathsf B/\max_{mm'}|\mathsf B_{mm'}|$
+\State solve the bordered system for $\bm\gamma$ by least squares
+\Comment{it becomes ill-conditioned near convergence}
+\State \Return $\sum_m \gamma_m\big[n^{(m)}_{\mathrm{in}}(\GG)
++ A\,\tfrac{G^2}{G^2+k_{TF}^2}\,R^{(m)}(\GG)\big]$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+The metric $4\pi/G^2$ weights long wavelengths, matching the physics (it
+is the Hartree energy of the residual). The $\GG=0$ component needs no
+special treatment: every input and output density integrates to $N_e$, so
+$R(\GG{=}0)=0$ identically, and because $\sum_m\gamma_m = 1$ the mixed
+density keeps the correct electron count. The mixed density can dip
+slightly negative at isolated grid points; the clamp inside the XC routine
+(Chapter~\ref{ch:xc}) is all that is needed. With the first history entry
+alone, $\gamma_1 = 1$ and the step is plain Kerker mixing. Mix all four
+components $(n, \mathbf m)$ with the same $\bm\gamma$ (the $\mathbf m$
+components without the Kerker factor); for gold, $\mathbf m$ stays zero but
+the code path should exist.
+
+\paragraph{Measuring convergence.} Throughout this document the residual
+norm is
+\begin{equation}
+\|R\| = \Big[\int_\Omega \big|n_{\mathrm{out}}(\rr)-n_{\mathrm{in}}(\rr)\big|^2
+\dd\rr\Big]^{1/2}
+= \Big[\frac{\Omega}{N_{\mathrm{grid}}}\sum_{\rr}|R(\rr)|^2\Big]^{1/2}.
+\label{eq:resnorm}
+\end{equation}
+Because the energy is stationary at self-consistency, its error is
+\emph{quadratic} in $\|R\|$: $\|R\|\sim10^{-4}$ already gives the energy to
+$\sim10^{-8}$\,Ha.
+
+\subsection{The complete SCF driver}
+
+\begin{algorithm}[H]
+\caption{Self-consistent field for spinor plane-wave DFT}
+\begin{algorithmic}[1]
+\State \textbf{Geometry-time setup:} lattice, reciprocal vectors, $\GG$
+spheres and masks per $\kk$, FFT grid and pad/gather indices, structure
+factor, $V_{\mathrm{loc,ion}}(\GG)$, projector arrays
+$\tilde\beta(\kk{+}\GG)$, $D^{\ell}$ blocks (with SOC), Ewald energy
+\State $n_{\mathrm{in}}(\GG) \gets \frac{1}{\Omega}\sum_a Z_{\mathrm{ion}}\,
+\ee^{-G^2 w^2/2}\,\ee^{-\ii\GG\cdot\RR_a}$ with $w = 1$\,Bohr
+(a Gaussian blob per atom, integrating to $N_e$); $\mathbf m \gets 0$
+\State $X_{\kk} \gets$ random initial blocks (Algorithm~\ref{alg:lobpcg},
+line 1)
+\For{$m = 1, \dots, m_{\max}$}
+\State $\vH \gets 4\pi n_{\mathrm{in}}(\GG)/G^2$;\quad
+$(\vxc, \mathbf B_{\mathrm{xc}}) \gets$ XC$(n_{\mathrm{in}}, \mathbf m, \nabla n_{\mathrm{in}})$
+\State $V_{\mathrm{eff,loc}} \gets V_{\mathrm{loc,ion}} + \vH + \vxc$
+(real-space grid)
+\State \textbf{for all $\kk$ in parallel:} Algorithm~\ref{alg:lobpcg}
+started from the current $X_\kk$, with $\epsilon = 0$ and $t_{\max} = 8$ in
+the first pass, $3$ afterwards, on
+$H_{\kk}[V_{\mathrm{eff,loc}}, \mathbf B_{\mathrm{xc}}]$
+$\Rightarrow \varepsilon_{n\kk}, X_{\kk}$
+\State $(\mu, f_{n\kk}, S) \gets$ \Call{Occupy}{$\varepsilon, w, N_e, \sigma$}
+\Comment{Algorithm~\ref{alg:fermi}}
+\State $(n_{\mathrm{out}}, \mathbf m_{\mathrm{out}}) \gets$ density from
+$\{X_{\kk}, f\}$ \Comment{Algorithm~\ref{alg:density}}
+\State $R \gets n_{\mathrm{out}} - n_{\mathrm{in}}$;\quad record
+$\|R\|$ and both free energies \Comment{Eqs.~\eqref{eq:resnorm},
+\eqref{eq:fdirect}, \eqref{eq:ftot}}
+\State \textbf{if} $\|R\| < 10^{-7}$ \textbf{stop}
+\State $n_{\mathrm{in}} \gets$ \Call{Mix}{$n_{\mathrm{in}}, R$, history}
+\Comment{Algorithm~\ref{alg:pulay}, $M = 8$}
+\EndFor
+\State Keep $n_{\mathrm{in}}$, $V_{\mathrm{eff,loc}}$ and $\mu$; all post-processing
+(band structure, DOS, parities, Wilson loops) uses
+Section~\ref{sec:nscf}
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{Convergence pathologies and cures.}
+\begin{itemize}[leftmargin=2em]
+\item \emph{Oscillating $F$, residual stuck}: smearing too small or
+$\kk$-mesh too coarse; raise $\sigma$ to $0.02$\,Ha to converge, then
+re-refine.
+\item \emph{Slow creep}: mixing history too short, or Kerker $k_{TF}$
+mismatched; try $A \in [0.3, 0.8]$.
+\item \emph{Occupied/empty band flip-flops}: not enough empty bands; ensure
+the highest computed band is $\gtrsim 10\sigma$ above $\mu$.
+\item \emph{LOBPCG stagnation}: block too small (use $N_b \ge N_{\mathrm{occ}}
++ 8$).
+\item \emph{Eigenvalues suddenly huge and negative}: the stored $HX$ or
+$HP$ is no longer consistent with $X$ or $P$; you simplified
+Algorithm~\ref{alg:lobpcg} (see ``Numerical stability'').
+\item \emph{Electron count drifts}: the density normalization of
+Algorithm~\ref{alg:density} or the $\kk$ weights are off; fix this before
+looking at anything else.
+\end{itemize}
+
+\section{After self-consistency: calculations at fixed potential}
+\label{sec:nscf}
+
+Once the SCF has converged, the density and hence $V_{\mathrm{eff,loc}}$
+are known and \emph{frozen}. The Kohn--Sham Hamiltonian is then a fixed
+linear operator, and its eigenstates can be computed at any $\kk$
+whatsoever --- not only on the SCF mesh --- at the cost of one eigensolve
+each. Every remaining result of this document is obtained this way.
+
+\begin{algorithm}[H]
+\caption{Bands at arbitrary $\kk$-points in a fixed potential}
+\label{alg:nscf}
+\begin{algorithmic}[1]
+\Function{SolveBands}{list of $\kk$;\ $V_{\mathrm{eff,loc}}$;\
+$N_{\mathrm{want}}$;\ $\epsilon$}
+\For{each $\kk$ (batched)}
+\State basis $\gets$ \Call{BuildBasis}{$\kk$, $E_{\mathrm{cut}}$}
+\Comment{same cutoff and FFT grid as the SCF}
+\State run Algorithm~\ref{alg:lobpcg} from a random start with
+$N_b = N_{\mathrm{want}}+6$ until the lowest $N_{\mathrm{want}}$ residuals
+are below $\epsilon$
+\EndFor
+\State \Return $\varepsilon_{n\kk}$ and coefficients $c^s_{n\kk}(\GG)$ for
+$n \le N_{\mathrm{want}}$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+Use double precision and $\epsilon \sim 10^{-8}$\,Ha here. Its uses:
+\begin{itemize}[leftmargin=2em]
+\item \textbf{Band structure.} A path
+$\Gamma$--$X$--$W$--$L$--$\Gamma$--$K$ through the FCC high-symmetry points
+of Section~\ref{sec:bzintegration}, 20--30 points per segment (interpolate
+linearly in fractional coordinates; plot against the cumulative Cartesian
+path length), energies measured from $\mu$.
+\item \textbf{Density of states.} On a mesh at least as fine as the SCF
+mesh,
+\begin{equation}
+g(\varepsilon) = \sum_{n\kk} w_{\kk}\,
+\delta_\sigma(\varepsilon - \varepsilon_{n\kk}),
+\end{equation}
+with $\delta_\sigma$ a normalized Gaussian of width $\sim 0.005$\,Ha. The
+$d$-band complex appears as a massive peak $2$--$7$\,eV below $E_F$, split
+by SOC.
+\item \textbf{Wavefunction diagnostics.} Parities at the eight TRIM
+(Section~\ref{sec:symmetry}) and overlaps between neighbouring
+$\kk$-points (Chapter~\ref{ch:topology}) need the coefficients, not just
+the eigenvalues --- which is why \textsc{SolveBands} returns them.
+\end{itemize}
+One caution: eigenvectors within a degenerate level --- and in gold every
+level is at least two-fold degenerate --- are returned in an arbitrary
+orthonormal combination, with arbitrary overall phases, different at every
+$\kk$. Any quantity you compute from wavefunctions must be insensitive to
+this freedom. Eigenvalues, densities, and traces or eigenvalues of
+matrices built from \emph{complete} degenerate groups are; individual
+matrix elements are not.
+
+\begin{gpubox}{Parallel structure of the whole SCF step}
+One SCF iteration is: [pointwise XC kernel] $\to$ [a few FFTs for
+$\vH$, gradients] $\to$ [batched LOBPCG: per iteration one batched
+$\hat H$-apply $=$ $2 N_k N_b$ FFT pairs $+$ a handful of batched GEMMs,
+then one $3N_b$-dim and four $N_b$-dim \texttt{eigh} per $\kk$ (batched)] $\to$ [device-wide reductions
+for $\mu$] $\to$ [$2 N_k N_b$ IFFTs $+$ fused reduction for the density]
+$\to$ [Fourier-space mixing]. Every stage is either elementwise, an FFT
+batch, a GEMM batch, or a small batched \texttt{eigh} --- there is no
+sequential inner structure anywhere except the SCF iteration count itself
+($\sim 20$--$40$ iterations) and the handful of LOBPCG steps inside each.
+\end{gpubox}

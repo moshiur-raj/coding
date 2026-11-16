@@ -1,0 +1,486 @@
+\chapter{The Colour of Gold}
+\label{ch:colour}
+
+Chapter~\ref{ch:intro} promised that the program would explain why gold is
+yellow. This chapter keeps the promise as far as an honest calculation
+can: it derives, implements and tests the complete chain
+\[
+\text{bands and wavefunctions}
+\;\to\; \varepsilon(\omega)
+\;\to\; R(\omega)
+\;\to\; \text{colour seen by a human eye},
+\]
+and then looks critically at what comes out. Every step is a
+post-processing of the fixed-potential calculation of
+Chapter~\ref{ch:conductivity}: no new self-consistent calculation is
+needed.
+
+\section{What ``colour'' means physically}
+
+A thick piece of metal transmits nothing; what you see is the light it
+reflects. Its colour is therefore determined by the
+\textbf{reflectivity} $R(\omega)$, the fraction of the incident intensity
+that is reflected at each photon energy $\hbar\omega$. Visible light spans
+$\hbar\omega = 1.6$\,eV (red, $\lambda = 780$\,nm) to $3.3$\,eV (violet,
+$380$\,nm); the conversion is $\lambda[\mathrm{nm}] =
+1239.84/\hbar\omega[\mathrm{eV}]$. A metal that reflects all visible
+frequencies equally is white-grey (silver, aluminium). Gold reflects red,
+orange and yellow light almost completely and blue light poorly; the eye
+reads that mixture as ``golden yellow''. Copper cuts off at a lower
+energy still and looks reddish.
+
+The reflectivity in turn is fixed by a single complex function, the
+\textbf{dielectric function} $\varepsilon(\omega) = \varepsilon_1(\omega)
++ \ii\varepsilon_2(\omega)$, which describes how the electrons respond to
+an oscillating electric field. So the task is to compute
+$\varepsilon(\omega)$.
+
+\section{The dielectric function from the band structure}
+
+An electromagnetic wave of frequency $\omega$ can do two things to the
+electrons of a metal.
+
+\paragraph{Intraband response: the Drude term.} It can accelerate the
+electrons at the Fermi surface, exactly as a static field does in
+Chapter~\ref{ch:conductivity}. Repeating that derivation with
+$\mathbf E\propto\ee^{-\ii\omega t}$ gives the conductivity
+$\sigma(\omega) = \sigma(0)/(1-\ii\omega\tau)$, and since a conductivity
+contributes $4\pi\ii\sigma/\omega$ to the dielectric function,
+\begin{equation}
+\varepsilon_{\mathrm{intra}}(\omega) = -\frac{\omega_p^2}{\omega\,(\omega +
+\ii\gamma)},
+\qquad \gamma = 1/\tau ,
+\label{eq:drude}
+\end{equation}
+with the plasma frequency of Eq.~\eqref{eq:plasma}. For
+$\gamma\ll\omega\ll\omega_p$ this is large and negative: the free
+electrons move so as to cancel the field inside the metal, and the wave is
+reflected. This is why metals are shiny.
+
+\paragraph{Interband response: absorption.} It can lift an electron from
+an occupied state $n\kk$ to an empty state $m\kk$ of another band. Light
+carries negligible momentum on the scale of the Brillouin zone, so $\kk$
+does not change: transitions are \emph{vertical} in a band-structure plot.
+The photon is absorbed if its energy matches,
+$\hbar\omega = \varepsilon_{m\kk}-\varepsilon_{n\kk}\equiv\omega_{mn}$,
+with a rate given by Fermi's golden rule. The perturbation is the coupling
+of the field to the electron's velocity, so the rate is proportional to
+$|\mathbf v_{mn}|^2$, the off-diagonal velocity matrix elements of
+Eq.~\eqref{eq:vmn}. Summing the absorbed power over all transitions and
+dividing by the energy flux of the wave gives the absorptive part of the
+dielectric function (cubic crystal, atomic units, one electron per spinor
+state):
+\begin{equation}
+\boxed{\;
+\varepsilon_2^{\mathrm{inter}}(\omega) = \frac{4\pi^2}{\Omega}
+\sum_{\kk} w_\kk \sum_{n,m}\big(f_{n\kk}-f_{m\kk}\big)\,
+\frac{|\mathbf v_{mn}(\kk)|^2}{3\,\omega_{mn}^2}\;
+\delta\big(\omega - \omega_{mn}\big),
+\qquad \omega_{mn} > 0 .\;}
+\label{eq:eps2}
+\end{equation}
+Read it as a recipe: for every $\kk$ and every pair (occupied $n$, empty
+$m$), put a spike at the transition energy $\omega_{mn}$ with strength
+$|\mathbf v_{mn}|^2/3\omega_{mn}^2$. The factor $f_n - f_m$ enforces the
+Pauli principle (from a filled to an empty state); $\tfrac13|\mathbf
+v|^2$ is the average over the three polarization directions, which are
+equivalent in a cubic crystal.
+
+\paragraph{The real part.} Causality ties the real part of a response
+function to its imaginary part (the Kramers--Kronig relation,
+$\varepsilon_1(\omega) = 1 + \tfrac{2}{\pi}\,\mathcal P\!\!\int_0^\infty
+\frac{\omega'\varepsilon_2(\omega')}{\omega'^2-\omega^2}\,\dd\omega'$).
+Inserting Eq.~\eqref{eq:eps2} does the integral analytically and gives
+both parts in one complex formula, which is what you should program:
+\begin{equation}
+\varepsilon_{\mathrm{inter}}(\omega) = 1 + \frac{8\pi}{\Omega}
+\sum_\kk w_\kk \sum_{\substack{n,m\\ \omega_{mn}>0}}
+\big(f_{n\kk}-f_{m\kk}\big)\,
+\frac{|\mathbf v_{mn}(\kk)|^2/3}
+{\omega_{mn}\,\big[\omega_{mn}^2 - (\omega + \ii\eta)^2\big]} .
+\label{eq:epsinter}
+\end{equation}
+The small positive $\eta$ turns each $\delta$-spike of
+Eq.~\eqref{eq:eps2} into a Lorentzian of width $\eta$ (check: for
+$\eta\to0$, $\mathrm{Im}\,[\omega_{mn}^2-(\omega+\ii\eta)^2]^{-1} \to
+\pi\,\delta(\omega-\omega_{mn})/2\omega_{mn}$, which reproduces
+Eq.~\eqref{eq:eps2}). It represents the finite lifetime of the excited
+states and, in practice, smooths the result of a finite $\kk$-mesh. The
+total dielectric function is
+\begin{equation}
+\varepsilon(\omega) = \varepsilon_{\mathrm{inter}}(\omega)
++ \varepsilon_{\mathrm{intra}}(\omega) .
+\label{eq:epstot}
+\end{equation}
+
+\paragraph{What has been approximated.} Equations
+\eqref{eq:drude}--\eqref{eq:epstot} are the \emph{independent-particle
+approximation}: (i) Kohn--Sham eigenvalue differences are used as
+excitation energies --- an assumption, not a theorem (see the
+interpretation warnings of Chapter~\ref{ch:hkks}); (ii) the electron and
+the hole it leaves behind are assumed not to interact, which is a good
+approximation in a metal, where they are screened; (iii) the microscopic
+fields that vary on the scale of the unit cell (``local fields'') are
+neglected; (iv) only as many empty bands as were computed are included,
+which slightly underestimates $\varepsilon_1$. For the colour of a noble
+metal (i) is by far the most important, as we shall see.
+
+\section{From the dielectric function to the reflectivity}
+
+Maxwell's equations for a wave hitting a flat surface at normal incidence
+give the reflected fraction in terms of the complex refractive index
+$\tilde n = \sqrt{\varepsilon}$:
+\begin{equation}
+R(\omega) = \left|\frac{\sqrt{\varepsilon(\omega)} - 1}
+{\sqrt{\varepsilon(\omega)} + 1}\right|^2 .
+\label{eq:reflectivity}
+\end{equation}
+Two limits explain everything that follows. If $\varepsilon$ is real and
+negative, $\sqrt\varepsilon$ is purely imaginary and $R = 1$: total
+reflection, the Drude regime. If absorption sets in
+($\varepsilon_2$ no longer small compared with $|\varepsilon_1|$), $R$
+drops. \emph{The colour of a noble metal is decided by the photon energy
+at which interband absorption begins}: below that threshold the metal is
+a near-perfect mirror, above it a mediocre one. In gold the threshold is
+the energy needed to lift an electron from the top of the $5d$ bands to
+the Fermi level (Fig.~\ref{fig:bands}). Experimentally it lies at about
+$2.4$\,eV, in the green (the measured reflectivity falls through $0.7$ at
+$2.38$\,eV for gold, $2.26$\,eV for copper and $3.74$\,eV for silver). In silver, whose $4d$ bands lie deeper, it
+is at about $3.8$\,eV, in the ultraviolet --- so silver reflects the whole
+visible spectrum and is white. The difference between the two is
+relativity (Chapter~\ref{ch:soc}): the relativistic contraction of the
+$6s$ shell and expansion of the $5d$ shell bring gold's $d$ bands close
+to the Fermi level.
+
+\section{From the reflectivity to a colour}
+
+Human colour vision has three kinds of receptors. Any spectrum of light
+$S(\lambda)$ is perceived through just three numbers, the
+\emph{tristimulus values}
+\begin{equation}
+X = \int S(\lambda)\,\bar x(\lambda)\,\dd\lambda,\qquad
+Y = \int S(\lambda)\,\bar y(\lambda)\,\dd\lambda,\qquad
+Z = \int S(\lambda)\,\bar z(\lambda)\,\dd\lambda ,
+\end{equation}
+where $\bar x,\bar y,\bar z$ are the standardized \emph{colour-matching
+functions} of the CIE 1931 standard observer ($Y$ measures brightness).
+For a reflecting object under an illuminant of spectrum $I(\lambda)$, the
+light reaching the eye is $S = I\,R$. Four ingredients make this
+computable in a few lines.
+
+\paragraph{1. Colour-matching functions.} They are tabulated, but an
+accurate analytic fit exists (Wyman, Sloan and Shirley, 2013). With
+$\lambda$ in nm and the asymmetric Gaussian
+$g(\lambda;\mu,\sigma_1,\sigma_2) =
+\exp\!\big[-\tfrac12(\lambda-\mu)^2/\sigma^2\big]$, $\sigma = \sigma_1$
+for $\lambda<\mu$ and $\sigma_2$ otherwise:
+\begin{equation}
+\begin{aligned}
+\bar x(\lambda) &= 1.056\,g(\lambda;599.8,37.9,31.0)
++ 0.362\,g(\lambda;442.0,16.0,26.7) - 0.065\,g(\lambda;501.1,20.4,26.2),\\
+\bar y(\lambda) &= 0.821\,g(\lambda;568.8,46.9,40.5)
++ 0.286\,g(\lambda;530.9,16.3,31.1),\\
+\bar z(\lambda) &= 1.217\,g(\lambda;437.0,11.8,36.0)
++ 0.681\,g(\lambda;459.0,26.0,13.8).
+\end{aligned}
+\label{eq:cmf}
+\end{equation}
+(Checked against the CIE table: the largest deviations are $0.015$,
+$0.007$ and $0.024$ for functions that peak at $1.06$, $1.00$ and
+$1.78$.)
+
+\paragraph{2. Illuminant.} Daylight is close to the spectrum of a black
+body at $T = 6500$\,K, $I(\lambda)\propto\lambda^{-5}/
+[\exp(c_2/\lambda T)-1]$ with $c_2 = 1.438777\times10^{7}$\,nm\,K.
+
+\paragraph{3. Normalization.} Divide by the values a perfect mirror
+($R = 1$) would give, so that white stays white whatever the illuminant,
+and express the result relative to the white point of the display
+standard:
+\begin{equation}
+X = 0.95047\,\frac{\int I R\,\bar x\,\dd\lambda}{\int I\,\bar x\,\dd\lambda},
+\qquad
+Y = \frac{\int I R\,\bar y\,\dd\lambda}{\int I\,\bar y\,\dd\lambda},
+\qquad
+Z = 1.08883\,\frac{\int I R\,\bar z\,\dd\lambda}{\int I\,\bar z\,\dd\lambda}.
+\label{eq:xyz}
+\end{equation}
+The integrals run from 380 to 780\,nm; a sum over 1\,nm steps suffices.
+
+\paragraph{4. Display colour (sRGB).} Screens use the sRGB standard. The
+linear red, green and blue intensities are
+\begin{equation}
+\begin{pmatrix} r\\ g\\ b\end{pmatrix} =
+\begin{pmatrix}
+\phantom{-}3.2406 & -1.5372 & -0.4986\\
+-0.9689 & \phantom{-}1.8758 & \phantom{-}0.0415\\
+\phantom{-}0.0557 & -0.2040 & \phantom{-}1.0570
+\end{pmatrix}
+\begin{pmatrix} X\\ Y\\ Z\end{pmatrix},
+\label{eq:srgbmatrix}
+\end{equation}
+each clipped to $[0,1]$ and then encoded with the sRGB transfer function
+$c \mapsto 12.92\,c$ for $c\le0.0031308$ and $1.055\,c^{1/2.4}-0.055$
+otherwise; multiply by 255 and round to obtain the familiar 8-bit triple.
+Two unit tests: $R\equiv1$ must give $(255,255,255)$, and $R\equiv0.5$
+must give $(188,188,188)$.
+
+\begin{algorithm}[H]
+\caption{Dielectric function, reflectivity and colour}
+\label{alg:colour}
+\begin{algorithmic}[1]
+\State \textbf{input:} $\varepsilon_{n\kk}$, $w_\kk$,
+$V_{mn}(\kk) = \tfrac13\sum_\alpha|v^\alpha_{mn}|^2$ and $\omega_p$ from
+Algorithm~\ref{alg:drude};\ $\mu$;\ $\eta$, $\gamma$
+\State $f_{n\kk}\gets 1$ if $\varepsilon_{n\kk}<\mu$ else $0$
+\Comment{sharp occupations: no smearing here}
+\State collect all transitions with $\omega_{mn} =
+\varepsilon_{m\kk}-\varepsilon_{n\kk} > 10^{-5}$\,Ha and $f_n - f_m > 0$:
+energies $\omega_t$, strengths $S_t = w_\kk\,(f_n-f_m)\,V_{mn}(\kk)$
+\For{each $\omega$ on a grid, $0 < \hbar\omega \le 8$\,eV, step $0.01$\,eV}
+\State $\varepsilon(\omega) \gets 1 + \dfrac{8\pi}{\Omega}\sum_t
+\dfrac{S_t}{\omega_t\,[\omega_t^2-(\omega+\ii\eta)^2]}
+\;-\;\dfrac{\omega_p^2}{\omega(\omega+\ii\gamma)}$
+\State $R(\omega)\gets\big|(\sqrt{\varepsilon}-1)/(\sqrt{\varepsilon}+1)\big|^2$
+\EndFor
+\State interpolate $R$ to $\lambda = 380,381,\dots,780$\,nm
+($\hbar\omega = 1239.84/\lambda$ eV)
+\State $X,Y,Z$ from Eqs.~\eqref{eq:cmf}--\eqref{eq:xyz};\quad sRGB from
+Eq.~\eqref{eq:srgbmatrix} and the transfer function
+\end{algorithmic}
+\end{algorithm}
+
+The transitions within a Kramers pair have $\omega_{mn} = 0$ and are
+excluded by the threshold in line 3; they are the intraband term. The
+sum over $\kk$ uses the irreducible wedge with its weights, as in
+Chapter~\ref{ch:conductivity}.
+
+\section{Results: the computed spectrum of gold}
+\label{sec:colourresults}
+
+The reference calculation uses the fixed self-consistent potential of
+Case~B (LDA, spin--orbit coupling on), the irreducible wedge of a
+$\Gamma$-centered $40^3$ mesh (\NKFINE{} points, 22 spinor bands, about
+\NTRANS\,000 transitions), $\eta = 0.1$\,eV and $\hbar\gamma = 0.07$\,eV
+(a typical value from optical measurements on gold; the colour is
+insensitive to it). Figure~\ref{fig:optics} shows the result.
+
+\begin{figure}[H]
+\centering
+\pgfplotsset{optplot/.style={width=0.5\textwidth, height=0.42\textwidth,
+  xmin=0.5, xmax=6, xlabel={$\hbar\omega$ (eV)},
+  tick label style={font=\small}, label style={font=\small},
+  title style={font=\small}, legend style={font=\scriptsize, draw=none, fill=none},
+  no markers}}
+\begin{tikzpicture}
+\begin{axis}[optplot, ymin=0, ymax=12, title={Interband absorption $\varepsilon_2^{\mathrm{inter}}$},
+  legend pos=north east]
+\fill[yellow!25] (axis cs:1.6,0) rectangle (axis cs:3.3,12);
+\addplot[red!70!black, thick] table[x index=0, y index=3] {figdata/optics_spec.dat};
+\addplot[black!55, thin] table[x index=0, y index=9] {figdata/optics_spec.dat};
+\addplot[black, only marks, mark=o, mark size=1.2pt] table[x index=0, y index=2] {figdata/optics_exp.dat};
+\legend{$40^3$ mesh, $24^3$ mesh, measured $\varepsilon_2$}
+\end{axis}
+\end{tikzpicture}\hfill
+\begin{tikzpicture}
+\begin{axis}[optplot, ymin=0, ymax=1.05, title={Reflectivity $R$}, legend pos=north east]
+\fill[yellow!25] (axis cs:1.6,0) rectangle (axis cs:3.3,1.05);
+\addplot[red!70!black, thick] table[x index=0, y index=4] {figdata/optics_spec.dat};
+\addplot[blue!60!black, thick, dashed] table[x index=0, y index=6] {figdata/optics_spec.dat};
+\addplot[black!55, thin] table[x index=0, y index=7] {figdata/optics_spec.dat};
+\addplot[black, only marks, mark=o, mark size=1.2pt] table[x index=0, y index=3] {figdata/optics_exp.dat};
+\legend{computed (LDA), transitions $+0.75$\,eV, Drude term only, measured}
+\end{axis}
+\end{tikzpicture}
+\caption{Optical response of gold from the reference calculation. The
+shaded band is the visible range ($1.6$--$3.3$\,eV). Left: the interband
+part of $\varepsilon_2$, Eq.~\eqref{eq:eps2}, for two $\kk$-meshes; the
+remaining differences are the fine structure a finite mesh cannot
+resolve. Right: reflectivity, Eq.~\eqref{eq:reflectivity}. Without
+interband transitions gold would be a featureless mirror (grey line);
+the $5d\to6s$ transitions cut the reflectivity down inside the visible
+range (red). Dashed: the same calculation with all interband transition
+energies raised by $0.75$\,eV, to show what a correctly placed absorption
+edge does (see text). Circles: measured optical constants of Johnson and
+Christy (1972); the measured $\varepsilon_2$ in the left panel is the
+total, including the small Drude part.}
+\label{fig:optics}
+\end{figure}
+
+\paragraph{What the calculation gets right.} Below about $1.3$\,eV
+interband absorption is weak and gold is an excellent mirror
+($R > 0.95$): this is the Drude regime, governed by $\omega_p$ alone.
+Then the $5d\to6s$ transitions set in. $\varepsilon_2^{\mathrm{inter}}$
+rises steeply, and the reflectivity collapses from above $0.9$ to below
+$0.5$ within half an electron volt. Above the edge it stays near
+$0.4$--$0.45$ throughout the visible, close to the measured reflectivity
+of gold for blue light (\REXPb{} at 450\,nm). The mechanism of gold's colour ---
+a reflectivity edge in the visible, created by the $d$ bands lying only a
+couple of eV below the Fermi level --- comes out of the band structure
+with no adjustable parameter. So does the integrated strength: the
+interband transitions below 8\,eV account for \NEFFINTER{} electrons per
+atom in the sum rule, on top of the \NEFF{} conduction electrons.
+
+\paragraph{What it gets wrong, and why.} The \emph{position} of the edge.
+The computed reflectivity falls through $0.7$ at \EDGE\,eV; in real gold
+(circles in Fig.~\ref{fig:optics}) the corresponding drop is at
+\EDGEEXP\,eV. The cause is not the
+optics but the band structure it is fed: the $5d$ bands of this
+calculation lie too close to the Fermi level. Their upper edge is at
+$-1.05$\,eV at $X$ and $-1.63$\,eV at $L$ (Table~\ref{tab:goldlevels}),
+whereas experiment places them $0.5$--$0.9$\,eV deeper
+(Table~\ref{tab:dbandexp}). This is the ``known shortcoming of LDA
+and GGA for the $d$ bands of noble metals'' met in
+Chapter~\ref{ch:soc}, made somewhat worse here by the 11-electron
+pseudopotential, and it is approximation (i) of the list above at work:
+Kohn--Sham eigenvalues are not excitation energies.
+
+The consequence for the colour is drastic, because the edge sits where the
+eye is most sensitive. With the edge at \EDGE\,eV instead of $2.4$\,eV,
+green and yellow light is absorbed as strongly as blue, and only red is
+reflected well:
+\begin{center}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+ & \multicolumn{3}{c}{reflectivity at} & colour\\
+ & 450\,nm & 550\,nm & 650\,nm & sRGB\\
+\midrule
+Drude term only (no $d$ bands) & \RDRb & \RDRg & \RDRr &
+\fcolorbox{black}{goldDR}{\rule{0pt}{1.6ex}\hspace{2.2em}}\ \ $(\RGBDR)$\\
+computed, LDA & \RLDAb & \RLDAg & \RLDAr &
+\fcolorbox{black}{goldLDA}{\rule{0pt}{1.6ex}\hspace{2.2em}}\ \ $(\RGBLDA)$\\
+interband transitions $+0.5$\,eV & \RSHab & \RSHag & \RSHar &
+\fcolorbox{black}{goldSHa}{\rule{0pt}{1.6ex}\hspace{2.2em}}\ \ $(\RGBSHa)$\\
+interband transitions $+0.75$\,eV & \RSHbb & \RSHbg & \RSHbr &
+\fcolorbox{black}{goldSHb}{\rule{0pt}{1.6ex}\hspace{2.2em}}\ \ $(\RGBSHb)$\\
+measured (Johnson and Christy) & \REXPb & \REXPg & \REXPr &
+\fcolorbox{black}{goldEXP}{\rule{0pt}{1.6ex}\hspace{2.2em}}\ \ $(\RGBEXP)$\\
+\bottomrule
+\end{tabular}
+\end{center}
+The last row is itself a test of the colour chain of
+Algorithm~\ref{alg:colour}: feeding \emph{measured} reflectivities
+through it gives
+\definecolor{agEXP}{RGB}{254,253,252}\definecolor{cuEXP}{RGB}{246,208,191}%
+\fcolorbox{black}{goldEXP}{\rule{0pt}{1.6ex}\hspace{1.4em}} $(\RGBEXP)$
+for gold,
+\fcolorbox{black}{agEXP}{\rule{0pt}{1.6ex}\hspace{1.4em}} $(254,253,252)$
+for silver and
+\fcolorbox{black}{cuEXP}{\rule{0pt}{1.6ex}\hspace{1.4em}} $(246,208,191)$
+for copper (optical constants of Johnson and Christy for all three) ---
+the colours of the three metals. The parameter-free LDA result, by
+contrast, is a pale, pinkish metal --- warmer than
+silver, far from yellow: the calculation predicts \emph{that} gold is
+coloured and \emph{why}, but not the right hue. The two ``shifted'' rows
+are an illustration, not a prediction: every interband transition energy
+$\omega_{mn}$ in the denominators of Eq.~\eqref{eq:epsinter} is raised by
+a constant $\Delta$ while the strengths $|\mathbf v_{mn}|^2/\omega_{mn}^2$
+are kept (in Algorithm~\ref{alg:colour}, replace
+$S_t/(\omega_t[\omega_t^2-\dots])$ by
+$(S_t/\omega_t^2)\,(\omega_t+\Delta)/[(\omega_t+\Delta)^2-\dots]$). As
+the edge moves toward its experimental position, green and yellow light
+is reflected again and the colour turns from pink through salmon to an
+orange gold. A rigid shift is a caricature of the true correction (it
+moves the edge by less than $\Delta$, because $\varepsilon_1$ changes
+with it, and it leaves the shape of the spectrum unchanged), but it makes
+the essential point: \emph{the colour of gold is a sensitive measurement
+of the energy of its $d$ bands}, more sensitive than the accuracy of
+LDA.
+
+\begin{table}[H]
+\centering\small
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Level (Kramers pair) & this calculation & PBE, semicore & experiment\\
+\midrule
+$\Gamma$: $d$ levels & $-5.45$, $-4.24$, $-3.02$ & $-5.67$, $-4.46$, $-3.27$ & $-6.0$, $-4.6$, $-3.7$\\
+$L$: upper $d$ levels (pairs 4, 5) & $-2.36$, $-1.63$ & $-2.61$, $-1.90$ & $-3.2$, $-2.3$\\
+$L$: $p$-like level (pair 6) & $-1.22$ & $-1.37$ & $-1.0$\\
+$L$: $s$-like level (pair 7) & $+3.13$ & $+2.93$ & $+3.6$\\
+\bottomrule
+\end{tabular}
+\caption{Band energies of gold in eV relative to $E_F$: the reference
+calculation of this document (LDA, 11-electron pseudopotential), a
+published all-electron-quality PBE calculation with semicore states, and
+angle-resolved photoemission and optical experiments (the last two columns
+from Rangel \emph{et al.}, Phys.\ Rev.\ B \textbf{86}, 125125 (2012),
+Table~II; experimental values from different measurements scatter by
+about $0.1$\,eV). The $d$ levels of both density-functional calculations
+are too shallow; those of this calculation are a further
+$0.2$--$0.3$\,eV shallower than the published PBE ones.}
+\label{tab:dbandexp}
+\end{table}
+
+The \emph{strength} of the absorption is also overestimated: at 3\,eV the
+computed $\varepsilon_2$ is \EPSCALC{} against a measured \EPSEXP. This
+too is typical of the independent-particle approximation with LDA bands
+for the noble metals.
+
+\paragraph{How one would do better.} In order of increasing effort:
+(a) the 19-electron pseudopotential of Appendix~\ref{app:q19} and the PBE
+functional, which change the $d$-band position by tenths of an eV;
+(b) a functional or method that describes localized $d$ states better
+than LDA and GGA --- hybrid functionals or DFT$+U$; (c) many-body
+perturbation theory ($GW$), in which quasiparticle energies replace
+Kohn--Sham eigenvalues and which, for gold, widens the $5d$--$6sp$
+separation by $0.4$--$0.8$\,eV (Rangel \emph{et al.}, cited above). All three change the
+\emph{input} to this chapter; Algorithm~\ref{alg:colour} stays as it is.
+None of them has been carried out for this document.
+
+\paragraph{The role of relativity.} The argument of
+Chapter~\ref{ch:soc} can now be made quantitative in the opposite
+direction. Everything that distinguishes the red curve of
+Fig.~\ref{fig:optics} from the grey one is the $5d$ band lying within
+2\,eV of the Fermi level, and that proximity is the relativistic
+contraction of the $6s$ shell and expansion of the $5d$ shell, built into
+the pseudopotential. Silver, with the same crystal structure and nearly
+the same lattice constant but weaker relativistic effects, has its $4d$
+bands about 2\,eV deeper: its edge lies in the ultraviolet and its
+visible reflectivity is the grey curve. Spin--orbit coupling itself plays
+a secondary role for the colour: it moves the upper $d$-band edge by a few
+tenths of an eV (compare the two halves of Table~\ref{tab:goldlevels}),
+and the reflectivity edge with it (\EDGENOSOC\,eV without SOC against
+\EDGESOC\,eV with SOC on the same $16^3$ mesh).
+
+\paragraph{Numerical convergence.} The sRGB values change by up to about
+ten units out of 255 when $\eta$ is varied between $0.05$ and $0.2$\,eV
+($(\RGBETA)$ for $\eta = 0.2$\,eV) and by a similar amount between the
+$24^3$ and $40^3$ meshes ($(\RGBCO)$ on the coarser one); the Drude
+damping $\gamma$ has no visible effect. These numerical uncertainties are
+real but small compared with the effect of the misplaced $d$ bands.
+
+\section{Sanity checks}
+
+\begin{enumerate}[leftmargin=2em]
+\item \textbf{Velocity matrix elements}: the Hellmann--Feynman test of
+Section~\ref{sec:velocity}.
+\item \textbf{Drude limit}: with the interband sum switched off,
+$R(\omega)$ must be within a few percent of 1 for
+$\gamma\ll\omega<\omega_p$ and drop steeply once $\omega$ exceeds
+$\omega_p$; the colour must come out as a neutral near-white
+(the reference calculation gives sRGB $(\RGBDR)$).
+\item \textbf{Sum rule}: $N_{\mathrm{eff}}(\omega_{\max}) =
+\frac{\Omega}{2\pi^2}\int_0^{\omega_{\max}}\omega\,\varepsilon_2(\omega)\,
+\dd\omega$ counts the electrons per cell that have absorbed below
+$\omega_{\max}$. The intraband term alone must give
+$\omega_p^2\Omega/4\pi$ (about one electron), and the total must stay
+below the number of valence electrons, 11.
+\item \textbf{Colour chain}: white and 50\% grey as above; a reflectivity
+that is 1 above 600\,nm and 0 below must come out red, and so on.
+\item \textbf{Kramers--Kronig}: $\varepsilon_1$ from
+Eq.~\eqref{eq:epsinter} must agree with a numerical Kramers--Kronig
+transform of $\varepsilon_2$.
+\item \textbf{Convergence}: repeat with a denser $\kk$-mesh and with
+$\eta$ halved. The positions of the absorption edge and of the
+reflectivity drop must not move; fine structure will.
+\end{enumerate}
+
+\begin{gpubox}{GPU/JAX notes}
+The expensive part --- bands and velocity matrices on the dense mesh ---
+was done in Chapter~\ref{ch:conductivity}. Everything in this chapter is a
+sum over a list of a few hundred thousand transitions for each of a few
+hundred frequencies: an outer product that fits one \texttt{vmap} over $\omega$,
+or a few seconds of NumPy on the host. A faster and equally accurate
+route is to histogram the strengths $S_t/\omega_t^2$ on a fine energy
+grid once and convolve.
+\end{gpubox}

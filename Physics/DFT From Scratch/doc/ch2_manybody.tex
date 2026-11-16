@@ -1,0 +1,124 @@
+\chapter{The Many-Electron Problem}
+\label{ch:manybody}
+
+\section{The full Hamiltonian}
+
+A piece of gold is a collection of nuclei (charge $Z$, mass $M$, positions
+$\RR_I$) and electrons (positions $\rr_i$, spins $\sigma_i$). Ignoring
+relativity for now (it returns in force in Chapter~\ref{ch:soc}), the
+non-relativistic Hamiltonian in atomic units is
+\begin{equation}
+\Ha =
+\underbrace{-\sum_i \tfrac12 \nabla_i^2}_{\hat T_e}
+\underbrace{-\sum_I \tfrac{1}{2M_I}\nabla_I^2}_{\hat T_N}
+\underbrace{-\sum_{i,I} \frac{Z_I}{|\rr_i - \RR_I|}}_{\hat V_{eN}}
++\underbrace{\sum_{i<j} \frac{1}{|\rr_i - \rr_j|}}_{\hat V_{ee}}
++\underbrace{\sum_{I<J} \frac{Z_I Z_J}{|\RR_I - \RR_J|}}_{\hat V_{NN}}.
+\label{eq:fullH}
+\end{equation}
+Every property of gold --- its color, conductivity, malleability, melting
+point --- is in principle encoded in the eigenstates of
+Eq.~\eqref{eq:fullH}. The entire difficulty of condensed-matter theory is
+that we cannot solve it.
+
+\section{Born--Oppenheimer: freezing the nuclei}
+
+A gold nucleus is $\sim 3.6\times 10^5$ times heavier than an electron.
+Electrons therefore adjust essentially instantaneously to any nuclear
+arrangement. Formally, one writes the total wavefunction as
+$\Psi(\{\rr\},\{\RR\}) \approx \chi(\{\RR\})\,\Phi_{\RR}(\{\rr\})$, where
+$\Phi_{\RR}$ solves the \emph{electronic} problem at clamped nuclei:
+\begin{equation}
+\Big[\hat T_e + \hat V_{ee} + \hat V_{eN}(\{\RR\})\Big]\,
+\Phi_{\RR}(\{\rr\}) = E_{\mathrm{el}}(\{\RR\})\,\Phi_{\RR}(\{\rr\}).
+\label{eq:electronicH}
+\end{equation}
+The electronic energy $E_{\mathrm{el}}(\{\RR\}) + V_{NN}(\{\RR\})$ then acts
+as a potential-energy surface on which the nuclei move; its minimum over the
+lattice constant $a$ gives the equilibrium structure, and its curvature gives
+the bulk modulus. Corrections to Born--Oppenheimer scale like $(m_e/M)^{1/4}$
+and are irrelevant for the ground-state properties we target. From now on
+``the problem'' means Eq.~\eqref{eq:electronicH}: $N$ interacting electrons
+in the \emph{external potential}
+\begin{equation}
+\vext(\rr) = -\sum_I \frac{Z_I}{|\rr - \RR_I|}
+\end{equation}
+created by the fixed nuclei (later: by pseudopotentials).
+
+\section{Why the wavefunction is a dead end}
+
+The electronic wavefunction $\Phi(\rr_1\sigma_1,\dots,\rr_N\sigma_N)$ is a
+function of $3N$ continuous coordinates and $N$ spins, antisymmetric under
+exchange of any two electrons (Pauli principle). Suppose you discretized
+each coordinate axis with a modest 10 points. For a single primitive cell of
+gold with 11 valence electrons, storing $\Phi$ would need $10^{33}$ complex
+numbers times $2^{11}$ spin components --- more numbers than atoms in a
+kilogram of gold. This exponential wall (Walter Kohn called it the
+``exponential catastrophe'') is not a matter of waiting for better GPUs: the
+object itself is too large. Any tractable theory must replace the
+wavefunction with a compact descriptor.
+
+\section{The electron density}
+
+The natural candidate is the \textbf{electron density}
+\begin{equation}
+n(\rr) = N \sum_{\sigma_1\cdots\sigma_N}\int
+\big|\Phi(\rr\sigma_1, \rr_2\sigma_2, \dots, \rr_N\sigma_N)\big|^2\,
+\dd\rr_2 \cdots \dd\rr_N ,
+\qquad \int n(\rr)\,\dd\rr = N,
+\label{eq:densitydef}
+\end{equation}
+the probability per unit volume of finding \emph{any} electron at $\rr$,
+regardless of what the others are doing. It is a function of just three
+variables no matter how many electrons there are: on a $64^3$ real-space
+grid it is $2.6\times 10^5$ numbers --- about two megabytes.
+
+Two contributions to the total energy at clamped nuclei are already exact
+functionals of $n$ alone:
+\begin{equation}
+\braket{\Phi|\hat V_{eN}|\Phi} = \int \vext(\rr)\, n(\rr)\, \dd\rr,
+\qquad
+V_{NN} = \text{constant for fixed nuclei}.
+\end{equation}
+The kinetic energy and the electron--electron repulsion are not obviously
+functionals of the density --- they depend on correlations between electrons,
+i.e.\ on the full $\Phi$. The astonishing content of the Hohenberg--Kohn
+theorems (next chapter) is that they are functionals of $n$ \emph{anyway}:
+the ground-state density secretly determines everything.
+
+\section{Spin densities and magnetization}
+
+Once spin--orbit coupling enters, spin is no longer a spectator. The complete
+one-body descriptor is the $2\times 2$ Hermitian \textbf{spin-density
+matrix}
+\begin{equation}
+n_{\alpha\beta}(\rr) = N\!\!\sum_{\sigma_2\cdots\sigma_N}\!\int
+\Phi^*(\rr\beta, \rr_2\sigma_2, \dots)\,
+\Phi(\rr\alpha, \rr_2\sigma_2, \dots)\, \dd\rr_2\cdots \dd\rr_N ,
+\qquad \alpha,\beta\in\{\uparrow,\downarrow\},
+\label{eq:spindensmat}
+\end{equation}
+which can be decomposed on the identity and the Pauli matrices
+$\bm\sigma = (\sigma_x,\sigma_y,\sigma_z)$:
+\begin{equation}
+n_{\alpha\beta}(\rr) = \tfrac12\Big[n(\rr)\,\delta_{\alpha\beta}
++ \mathbf{m}(\rr)\cdot\bm\sigma_{\alpha\beta}\Big],
+\qquad
+n = \mathrm{tr}\,\hat n, \quad
+\mathbf{m}(\rr) = \mathrm{tr}\,[\bm\sigma\, \hat n(\rr)].
+\end{equation}
+Here $n(\rr)$ is the total density and $\mathbf{m}(\rr)$ the local
+\textbf{magnetization density}, a vector field that may point in different
+directions at different points (``noncollinear magnetism''). Bulk gold is
+non-magnetic --- time-reversal symmetry will force $\mathbf{m}=0$
+(Chapter~\ref{ch:soc}) --- but your code should carry the full
+$n_{\alpha\beta}$ machinery, because with spinor wavefunctions it costs
+little and keeps the theory honest.
+
+\begin{keybox}{Where we stand}
+Problem: $N \sim 10^{23}$ interacting electrons; wavefunction exponentially
+large. Strategy: reformulate the ground-state problem exactly in terms of the
+density $n(\rr)$ (3 variables) or spin-density matrix $n_{\alpha\beta}(\rr)$
+(4 real fields: $n$ and $\mathbf m$), then approximate the one piece that has no known closed
+form --- exchange and correlation.
+\end{keybox}

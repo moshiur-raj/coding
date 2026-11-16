@@ -1,0 +1,347 @@
+\chapter{Pseudopotentials}
+\label{ch:pseudo}
+
+\section{Why plane waves cannot see a gold nucleus}
+
+Near a nucleus of charge $Z$, the wavefunction behaves like a hydrogenic
+orbital with length scale $\sim 1/Z$ Bohr; moreover valence states must
+oscillate rapidly there to remain orthogonal to the core states (gold has 68
+core electrons, $1s$ through $5p$, below its 11 valence electrons). Resolving structure on the scale
+$1/79$\,Bohr with plane waves would require $E_{\mathrm{cut}} \sim Z^2 \sim
+6000$\,Ha and $\sim 3\times10^6$ plane waves per band --- hopeless. But this violent
+region is chemically inert: bonding, band formation, and Fermi-surface
+physics are governed by the smooth tails of the valence states between atoms.
+
+The \textbf{pseudopotential} idea: replace the nucleus + frozen core by an
+effective, angular-momentum-dependent potential that is (i) identical to the
+true (screened) potential outside a core radius $r_c$, and (ii) weak and
+smooth inside, such that its \emph{pseudo-wavefunctions} are nodeless, smooth,
+and match the true valence wavefunctions exactly for $r > r_c$, with the same
+eigenvalues.
+
+\section{Norm conservation}
+
+Modern norm-conserving pseudopotentials (Hamann--Schl\"uter--Chiang 1979) are
+constructed, per angular momentum $\ell$, from an all-electron atomic
+calculation by demanding, at the atomic reference energy
+$\varepsilon_\ell$:
+\begin{enumerate}[leftmargin=2em]
+\item $\psi^{\mathrm{PS}}_\ell(r) = \psi^{\mathrm{AE}}_\ell(r)$ for $r > r_c$;
+pseudo-eigenvalue $=$ all-electron eigenvalue.
+\item \textbf{Norm conservation}: $\displaystyle\int_0^{r_c}
+|\psi^{\mathrm{PS}}_\ell|^2 r^2 \dd r = \int_0^{r_c}
+|\psi^{\mathrm{AE}}_\ell|^2 r^2 \dd r$ --- the pseudo-orbital carries the
+correct amount of charge inside the core.
+\end{enumerate}
+Norm conservation is not cosmetic: by an identity relating the energy
+derivative of the logarithmic derivative to the enclosed norm,
+\begin{equation}
+-\frac{\partial}{\partial \varepsilon}
+\frac{\partial}{\partial r} \ln \psi_\ell(r, \varepsilon)\Big|_{r_c}
+\;=\; \frac{2}{r_c^2\, |\psi_\ell(r_c)|^2} \int_0^{r_c}
+|\psi_\ell|^2\, r^2\, \dd r,
+\end{equation}
+it guarantees that the pseudo-atom scatters electrons like the real atom not
+only \emph{at} $\varepsilon_\ell$ but to first order \emph{around} it ---
+the transferability that lets an atomic construction describe a solid.
+
+\section{Semilocal form and the Kleinman--Bylander transformation}
+
+The raw construction yields a \emph{semilocal} operator --- local in $r$,
+different for each $\ell$:
+\begin{equation}
+\hat V_{\mathrm{PS}} = V_{\mathrm{loc}}(r)
++ \sum_{\ell m} \ket{\ell m}\, \Delta V_\ell(r)\, \bra{\ell m},
+\qquad \Delta V_\ell = V_\ell - V_{\mathrm{loc}},
+\end{equation}
+where $\ket{\ell m}$ projects onto angular momentum about the atom. Matrix
+elements of the semilocal part between $N_{\mathrm{pw}}$ plane waves cost
+$O(N_{\mathrm{pw}}^2)$ --- too much. Kleinman and Bylander (1982) observed
+that $\Delta V_\ell$ only needs to be correct when acting on wavefunctions
+resembling the atomic reference $\phi_\ell$, and replaced it by a rank-one
+\emph{fully separable} operator per channel:
+\begin{equation}
+\Delta \hat V_{\ell}^{\mathrm{KB}} =
+\frac{\ket{\Delta V_\ell\, \phi_\ell} \bra{\phi_\ell\, \Delta V_\ell}}
+{\braket{\phi_\ell | \Delta V_\ell | \phi_\ell}},
+\end{equation}
+which by construction reproduces the semilocal action on $\phi_\ell$
+exactly. The general separable (multi-projector) form your code will
+implement is
+\begin{equation}
+\boxed{\;
+\hat V_{\mathrm{NL}} = \sum_{a}\sum_{\ell m}\sum_{ij}
+\ket{\beta^{a}_{i\ell m}}\; h^{\ell}_{ij}\; \bra{\beta^{a}_{j \ell m}},
+\;}
+\label{eq:separable}
+\end{equation}
+a sum over atoms $a$, channels $\ell m$, and a small matrix $h^{\ell}_{ij}$
+coupling a few radial projectors $\beta_{i\ell m}(\rr) = p_{i\ell}(r)\,
+Y_{\ell m}(\hat \rr)$. Its action on a state costs only projections
+$\braket{\beta | \psi}$ --- tall-skinny matrix multiplications, the second
+GPU-native kernel of the code.
+
+\section{HGH pseudopotentials: analytic, relativistic, perfect for from-scratch}
+\label{sec:hgh}
+
+For a self-contained implementation you want a pseudopotential defined by a
+\emph{short table of numbers and closed-form functions}, not by files with
+radial grids. The Goedecker--Teter--Hutter / \textbf{Hartwigsen--Goedecker--%
+Hutter (HGH, 1998)} family is exactly that, is norm-conserving, is already in
+separable form, has \emph{analytic Fourier transforms}, and --- decisively for
+us --- the HGH paper tabulates \textbf{fully relativistic parameters
+including spin--orbit projectors for every element from H to Rn}, gold
+included.
+
+\paragraph{Local part.} A smeared Coulomb tail plus a short-range Gaussian
+polynomial:
+\begin{equation}
+V_{\mathrm{loc}}(r) = -\frac{Z_{\mathrm{ion}}}{r}\,
+\mathrm{erf}\!\left(\frac{r}{\sqrt 2\, r_{\mathrm{loc}}}\right)
++ \ee^{-\frac{r^2}{2 r_{\mathrm{loc}}^2}}
+\Big[C_1 + C_2 \tilde r^{\,2} + C_3 \tilde r^{\,4} + C_4 \tilde r^{\,6}\Big],
+\qquad \tilde r = r/r_{\mathrm{loc}} .
+\label{eq:hghloc}
+\end{equation}
+Its Fourier transform (what you actually need, Chapter~\ref{ch:hamiltonian})
+is analytic:
+\begin{equation}
+\tilde V_{\mathrm{loc}}(G) =
+-\frac{4\pi Z_{\mathrm{ion}}}{G^2}\, \ee^{-\frac{(G r_{\mathrm{loc}})^2}{2}}
++ (2\pi)^{3/2} r_{\mathrm{loc}}^3\, \ee^{-\frac{(G r_{\mathrm{loc}})^2}{2}}
+\times \big[\text{polynomial in } (G r_{\mathrm{loc}})^2
+\text{ with } C_1..C_4\big],
+\label{eq:hghlocG}
+\end{equation}
+where, with $x = G r_{\mathrm{loc}}$, the polynomial is
+\begin{equation}
+C_1 + C_2\,(3 - x^2) + C_3\,(15 - 10x^2 + x^4)
++ C_4\,(105 - 105x^2 + 21x^4 - x^6).
+\label{eq:hghlocpoly}
+\end{equation}
+Here $\tilde V_{\mathrm{loc}}(G) \equiv \int V_{\mathrm{loc}}(r)\,
+\ee^{-\ii\GG\cdot\rr}\,\dd\rr$ is the transform of \emph{one atom's}
+potential over all space (no $1/\Omega$ yet; that enters in
+Eq.~\eqref{eq:structfact}).
+The $-4\pi Z/G^2$ piece diverges at $G=0$ like the bare Coulomb potential;
+it cancels analytically against Hartree and Ewald divergences
+(Section~\ref{sec:g0}).
+
+\paragraph{Nonlocal part.} Gaussian-type radial projectors
+\begin{equation}
+p_{i\ell}(r) = \frac{\sqrt 2\; r^{\ell + 2(i-1)}\,
+\ee^{-r^2/(2 r_\ell^2)}}
+{r_\ell^{\,\ell + (4i-1)/2}\,
+\sqrt{\Gamma\big(\ell + \tfrac{4i-1}{2}\big)}},
+\qquad i = 1,2,3,
+\label{eq:hghproj}
+\end{equation}
+with coupling matrices $h^{\ell}_{ij}$ --- and, in the relativistic version,
+additional \textbf{spin--orbit coupling matrices} $k^{\ell}_{ij}$ entering as
+\begin{equation}
+\hat V_{\mathrm{NL}} = \sum_{\ell m, ij} \ket{\beta_{i\ell m}}
+h^{\ell}_{ij} \bra{\beta_{j\ell m}}
+\;+\; \sum_{\ell m m', ij} \ket{\beta_{i\ell m}}\,
+k^{\ell}_{ij}\; \big(\mathbf{L}\cdot\mathbf{S}\big)^{\ell}_{mm'}
+\,\bra{\beta_{j\ell m'}} ,
+\label{eq:hghso}
+\end{equation}
+where $\mathbf L \cdot \mathbf S$ acts on the product of orbital ($m$) and
+spinor indices --- the full derivation and matrix elements are in
+Chapter~\ref{ch:soc}. The radial functions are normalized,
+$\int_0^\infty p_{i\ell}^2\, r^2\,\dd r = 1$.
+
+\paragraph{Projectors in reciprocal space.} A plane wave expands in
+spherical waves (the Rayleigh formula),
+\begin{equation}
+\ee^{\ii\qq\cdot\rr} = 4\pi \sum_{\ell=0}^{\infty}\sum_{m=-\ell}^{\ell}
+\ii^{\ell}\, j_\ell(qr)\, Y_{\ell m}(\hat\qq)\, Y_{\ell m}(\hat\rr),
+\label{eq:rayleigh}
+\end{equation}
+with $j_\ell$ the spherical Bessel functions and $Y_{\ell m}$ \emph{real}
+spherical harmonics (Table~\ref{tab:realylm}). Insert this into the overlap
+of a projector $\beta_{i\ell m}(\rr) = p_{i\ell}(r) Y_{\ell m}(\hat\rr)$,
+centered on an atom at $\RR_a$, with the normalized plane wave
+$\ee^{\ii\qq\cdot\rr}/\sqrt\Omega$, $\qq = \kk+\GG$. Orthonormality of the
+$Y_{\ell m}$ kills every term but one:
+\begin{equation}
+\tilde\beta^{a}_{i\ell m}(\qq) \equiv \braket{\qq|\beta^{a}_{i\ell m}}
+= \frac{1}{\sqrt\Omega}\int \ee^{-\ii\qq\cdot\rr}\,
+\beta_{i\ell m}(\rr - \RR_a)\,\dd\rr
+= \frac{4\pi}{\sqrt\Omega}\,(-\ii)^{\ell}\;
+\tilde p_{i\ell}(q)\; Y_{\ell m}(\hat\qq)\;\ee^{-\ii\qq\cdot\RR_a} .
+\label{eq:betaG}
+\end{equation}
+So the overlap reduces to a one-dimensional \emph{spherical Bessel
+transform} of the radial part,
+\begin{equation}
+\tilde p_{i\ell}(q) \equiv \int_0^\infty p_{i\ell}(r)\, j_\ell(qr)\, r^2\,
+\dd r ,
+\label{eq:besseltransform}
+\end{equation}
+and for Gaussians these integrals are elementary. With $x = q r_\ell$ and
+the common factor $\mathcal E = \pi^{1/4}\, \ee^{-x^2/2}$:
+\begin{equation}
+\begin{aligned}
+\tilde p_{1,s} &= \mathcal E \sqrt{2 r_\ell^3},
+&
+\tilde p_{2,s} &= \mathcal E\, 2\sqrt{\tfrac{2 r_\ell^3}{15}}\,(3 - x^2),
+&
+\tilde p_{3,s} &= \mathcal E\, \tfrac43\sqrt{\tfrac{2 r_\ell^3}{105}}\,
+(15 - 10x^2 + x^4),
+\\
+\tilde p_{1,p} &= \mathcal E\, 2\sqrt{\tfrac{r_\ell^5}{3}}\; q,
+&
+\tilde p_{2,p} &= \mathcal E\, 4\sqrt{\tfrac{r_\ell^5}{105}}\; q\,(5 - x^2),
+&
+\tilde p_{3,p} &= \mathcal E\, \tfrac83\sqrt{\tfrac{r_\ell^5}{1155}}\; q\,
+(35 - 14x^2 + x^4),
+\\
+\tilde p_{1,d} &= \mathcal E\, 2\sqrt{\tfrac{2 r_\ell^7}{15}}\; q^2,
+&
+\tilde p_{2,d} &= \mathcal E\, \tfrac43\sqrt{\tfrac{2 r_\ell^7}{105}}\;
+q^2\,(7 - x^2),
+&
+\tilde p_{3,d} &= \mathcal E\, \tfrac83\sqrt{\tfrac{2 r_\ell^7}{15015}}\;
+q^2\,(63 - 18x^2 + x^4).
+\end{aligned}
+\label{eq:hghprojG}
+\end{equation}
+(Each line was checked against direct numerical integration of
+Eq.~\eqref{eq:besseltransform}; do the same in your unit tests.) Gaussians
+times polynomials in $q$ --- evaluate them directly on your $|\kk+\GG|$
+grid, no radial integration, no splines, no file parsing. This is
+why HGH is the right choice for a from-scratch code: \emph{the entire ionic
+problem for gold is about twenty published numbers plus closed-form
+functions}.
+
+\paragraph{Off-diagonal couplings.} The radial functions $p_{1\ell}$ and
+$p_{2\ell}$ are each normalized but \emph{not orthogonal to each other}
+($\int p_{1\ell}\,p_{2\ell}\, r^2 \dd r = \sqrt{3/5}, \sqrt{5/7}, \sqrt{7/9}$
+for $\ell = 0,1,2$). Consequently the matrices $h^\ell_{ij}$ and
+$k^\ell_{ij}$, which are symmetric, have off-diagonal elements that are
+\emph{not} zero. In the original HGH paper only the diagonal elements are
+tabulated and the off-diagonal ones are fixed multiples of them, e.g.\ for
+two projectors
+\begin{equation}
+h^{s}_{12} = -\tfrac12\sqrt{\tfrac35}\, h^{s}_{22},
+\qquad
+h^{p}_{12} = -\tfrac12\sqrt{\tfrac57}\, h^{p}_{22},
+\qquad
+h^{d}_{12} = -\tfrac12\sqrt{\tfrac79}\, h^{d}_{22},
+\label{eq:hghoffdiag}
+\end{equation}
+and likewise for $k_{12}$. Later parameter sets in the same family (the PBE
+set below) follow a different convention --- there the ratios are exactly
+twice these (check: $-2.25067966/2.90561495 = -\sqrt{3/5}$). To make this
+impossible to get wrong,
+Table~\ref{tab:auhgh} lists \emph{every} matrix element explicitly: use
+the tabulated matrices verbatim and derive nothing. Forgetting the
+off-diagonal elements is the classic HGH bug: the code runs and gives
+plausible but wrong bands.
+
+\paragraph{Gold parameters.} Table~\ref{tab:auhgh} lists the complete
+11-electron parameter sets. Gold uses two projectors ($i = 1,2$) in each of
+the $s$, $p$, $d$ channels, so there are $2\,(1+3+5) = 18$ projector
+functions per atom, and only $C_1$ is nonzero in the local part. Two
+choices of valence: the 11-electron potential ($5d^{10}6s^1$, cheaper, fine for bands
+near $E_F$) and the 19-electron semicore potential
+($5s^2 5p^6 5d^{10} 6s^1$, stiffer, $E_{\mathrm{cut}}$ higher, better lattice
+constant; parameters in Appendix~\ref{app:q19}, where a third $s$ and $p$
+projector and a second local coefficient appear). Start with $q=11$;
+graduate to $q=19$ when validating energetics.
+HGH parameters exist in matched LDA and PBE flavors --- use the one matching
+your XC functional.
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{@{}llrrr@{}}
+\toprule
+\multicolumn{5}{@{}l}{\textbf{LDA} (HGH 1998; entry \texttt{Au GTH-PADE-q11}):\quad
+$r_{\mathrm{loc}} = 0.59000000$,\ \ $C_1 = 11.60442790$}\\
+\midrule
+channel & & \multicolumn{1}{c}{$11$} & \multicolumn{1}{c}{$12 = 21$} & \multicolumn{1}{c}{$22$}\\
+\midrule
+$s$:\ $r_s = 0.52117975$ & $h_{ij}$ & $2.53861359$ & $-1.04613664$ & $2.70111320$\\
+\addlinespace
+$p$:\ $r_p = 0.63061306$ & $h_{ij}$ & $0.39485270$ & $-0.86959213$ & $2.05783056$\\
+ & $k_{ij}$ & $-0.96005489$ & $-0.54790119$ & $1.29657086$\\
+\addlinespace
+$d$:\ $r_d = 0.44070643$ & $h_{ij}$ & $-4.71906966$ & $0.72777081$ & $-1.65042907$\\
+ & $k_{ij}$ & $0.14848354$ & $0.07473921$ & $-0.16949260$\\
+\midrule
+\multicolumn{5}{@{}l}{\textbf{PBE} (Krack 2005; entry \texttt{Au GTH-PBE-q11}):\quad
+$r_{\mathrm{loc}} = 0.59000000$,\ \ $C_1 = 10.51717881$}\\
+\midrule
+$s$:\ $r_s = 0.54384733$ & $h_{ij}$ & $5.78681103$ & $-2.25067966$ & $2.90561495$\\
+\addlinespace
+$p$:\ $r_p = 0.60917298$ & $h_{ij}$ & $4.28404873$ & $-4.07128520$ & $4.81720962$\\
+ & $k_{ij}$ & $1.21911104$ & $-2.38187511$ & $2.81827264$\\
+\addlinespace
+$d$:\ $r_d = 0.43730922$ & $h_{ij}$ & $-7.40328124$ & $3.01019307$ & $-3.41323811$\\
+ & $k_{ij}$ & $-0.12113041$ & $0.26246301$ & $-0.29760507$\\
+\bottomrule
+\end{tabular}
+\caption{HGH/GTH pseudopotential parameters for Au with
+$Z_{\mathrm{ion}} = 11$ (Hartree atomic units), transcribed with all
+digits from the \texttt{GTH\_SOC\_POTENTIALS} database distributed with the
+CP2K code (a copy is in \texttt{verification/reference\_data/}). Columns
+$11$, $12$, $22$ are the elements of the symmetric $2\times2$ matrices
+$h^\ell_{ij}$ and $k^\ell_{ij}$. $C_2 = C_3 = C_4 = 0$, there is no third
+projector, and the $s$ channel has no $k$ (no spin--orbit coupling for
+$\ell = 0$). The reference numbers of Chapter~\ref{ch:verify} were
+produced with exactly these digits; rounding them to six decimals changes
+total energies in the sixth decimal. A single wrong digit is invisible in
+the code and obvious only in the lattice constant, so check your typing
+against the source file.}
+\label{tab:auhgh}
+\end{table}
+
+\begin{keybox}{What the pseudopotential changes in the formalism}
+Everywhere ``$\vext$'' appeared in Chapters~\ref{ch:hkks}--\ref{ch:solids},
+substitute: a \emph{local} part $\sum_a V_{\mathrm{loc}}(|\rr - \RR_a|)$
+(handled in Fourier space with structure factors,
+Chapter~\ref{ch:hamiltonian}) plus the \emph{nonlocal} separable operator
+\eqref{eq:separable}--\eqref{eq:hghso}. The electron count $N_e$ becomes the
+number of \emph{valence} electrons ($11$ or $19$ for Au). The ion--ion energy
+$E_{NN}$ uses $Z_{\mathrm{ion}} = N_e$ point charges (Ewald,
+Section~\ref{sec:ewald}). All theorems survive unchanged; the KS equations
+merely acquire a nonlocal term.
+\end{keybox}
+
+\begin{gpubox}{GPU/JAX notes}
+Projectors in reciprocal space factorize into radial, angular and
+structure-phase parts, Eq.~\eqref{eq:betaG}; build them once per geometry as a dense
+array $[N_k, N_{\mathrm{proj}}, N_G^{\max}]$. The nonlocal action on all
+bands is then two batched GEMMs:
+$P = B^{\dagger} C$ (shape $[N_k, N_{\mathrm{proj}}, N_{\mathrm{bands}}
+\times 2]$) followed by $C \mathrel{+}= B\, (H P)$ where $H$ is the small
+block-diagonal $h/k$ coupling matrix. Real spherical harmonics up to
+$\ell = 2$ ($s,p,d$: 9 functions) are short closed-form polynomials of the
+unit vector components --- write them explicitly, no recursion needed
+(Table~\ref{tab:realylm}). At $\kk+\GG = 0$ the direction is undefined;
+since $\tilde p_{i\ell}(0) = 0$ for $\ell > 0$ any finite value will do
+(but make sure it \emph{is} finite: divide by $\max(|\qq|, \epsilon)$, not
+by $|\qq|$, or a NaN at $\Gamma$ will poison the whole array).
+\end{gpubox}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}cll@{}}
+\toprule
+$\ell$ & index $\mu$ & $Y_{\ell\mu}(\hat{\mathbf q})$, with
+$\hat{\mathbf q} = (x,y,z)$, $x^2+y^2+z^2=1$\\
+\midrule
+0 & $0$ & $\sqrt{1/4\pi}$\\
+1 & $-1,\ 0,\ 1$ & $\sqrt{3/4\pi}\;\{\,y,\ z,\ x\,\}$\\
+2 & $-2,\ -1,\ 0$ & $\sqrt{15/4\pi}\,xy$,\ \ $\sqrt{15/4\pi}\,yz$,\ \
+$\sqrt{5/16\pi}\,(3z^2-1)$\\
+  & $1,\ 2$ & $\sqrt{15/4\pi}\,xz$,\ \ $\sqrt{15/16\pi}\,(x^2-y^2)$\\
+\bottomrule
+\end{tabular}
+\caption{Real spherical harmonics through $\ell=2$, in the order
+$\mu = -\ell\dots\ell$ used throughout. They are orthonormal on the unit
+sphere and satisfy $\sum_\mu Y_{\ell\mu}(\hat{\mathbf q})^2 =
+(2\ell+1)/4\pi$ --- a one-line unit test.}
+\label{tab:realylm}
+\end{table}

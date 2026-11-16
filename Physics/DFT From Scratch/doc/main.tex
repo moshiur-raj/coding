@@ -1,0 +1,85 @@
+\documentclass[11pt,a4paper]{report}
+
+\usepackage[margin=2.4cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools,bm}
+\usepackage{braket}
+\usepackage{microtype}
+\usepackage[hidelinks]{hyperref}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage[most]{tcolorbox}
+\usepackage{xcolor}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+\usepackage{float}
+
+\definecolor{boxbg}{RGB}{245,247,250}
+\definecolor{boxframe}{RGB}{70,90,120}
+\newtcolorbox{keybox}[1]{colback=boxbg,colframe=boxframe,title=#1,fonttitle=\bfseries,
+  boxrule=0.6pt,arc=1.5mm,left=2mm,right=2mm,top=1.5mm,bottom=1.5mm}
+\newtcolorbox{gpubox}[1]{colback=green!4,colframe=green!35!black,title=#1,fonttitle=\bfseries,
+  boxrule=0.6pt,arc=1.5mm,left=2mm,right=2mm,top=1.5mm,bottom=1.5mm}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[chapter]
+\newtheorem{lemma}[theorem]{Lemma}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\rr}{\mathbf{r}}
+\newcommand{\RR}{\mathbf{R}}
+\newcommand{\kk}{\mathbf{k}}
+\newcommand{\GG}{\mathbf{G}}
+\newcommand{\qq}{\mathbf{q}}
+\newcommand{\dd}{\mathrm{d}}
+\newcommand{\ii}{\mathrm{i}}
+\newcommand{\ee}{\mathrm{e}}
+\newcommand{\Ha}{\hat{H}}
+\newcommand{\Exc}{E_{\mathrm{xc}}}
+\newcommand{\vxc}{v_{\mathrm{xc}}}
+\newcommand{\veff}{v_{\mathrm{eff}}}
+\newcommand{\vext}{v_{\mathrm{ext}}}
+\newcommand{\vH}{v_{\mathrm{H}}}
+\newcommand{\fdv}[2]{\frac{\delta #1}{\delta #2}}
+\newcommand{\pdv}[2]{\frac{\partial #1}{\partial #2}}
+
+\allowdisplaybreaks
+\setlength{\parskip}{0.35em}
+
+\title{\textbf{Density Functional Theory from Scratch}\\[0.6em]
+\Large A complete theoretical and algorithmic guide to a plane-wave,
+spinor, spin--orbit-coupled DFT code for FCC gold --- its bands, its
+topology, its conductivity and its colour\\[0.6em]
+\large Designed for a JAX / GPU implementation\\[0.6em]
+\large \textbf{Written by Claude AI}}
+\author{}
+\date{July 2026; revised and numerically verified November 2026}
+
+\begin{document}
+\maketitle
+\tableofcontents
+
+\input{ch1_intro.tex}
+\input{ch2_manybody.tex}
+\input{ch3_hk_ks.tex}
+\input{ch4_xc.tex}
+\input{ch5_solids.tex}
+\input{ch6_pseudo.tex}
+\input{ch7_soc.tex}
+\input{ch8_hamiltonian.tex}
+\input{ch9_algorithms.tex}
+\input{ch10_gpu.tex}
+\input{ch11_topology.tex}
+\input{ch12_conductivity.tex}
+\input{ch13_colour.tex}
+\input{ch14_verify.tex}
+
+\appendix
+\input{appA_q19.tex}
+
+\end{document}

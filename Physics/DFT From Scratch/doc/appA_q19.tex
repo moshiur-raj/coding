@@ -1,0 +1,113 @@
+\chapter{Semicore (19-electron) Parameters for Gold}
+\label{app:q19}
+
+The 19-electron potentials treat $5s^25p^6$ as valence in addition to
+$5d^{10}6s^1$. The formalism is unchanged; what changes is the size of the
+tables: the local part has $r_{\mathrm{loc}} = 0.49$ (and, for LDA, a
+second coefficient $C_2$), the $s$ and $p$ channels carry \emph{three}
+projectors (use the $i=3$ lines of Eq.~\eqref{eq:hghprojG}), and the
+coupling matrices are $3\times3$. There are then $3 + 3\cdot3 + 2\cdot5 =
+22$ projector functions per atom. $N_e = 19$, so solve for at least
+$\sim 30$ spinor bands; the lowest eight (four Kramers pairs: $5s$ and
+$5p$) form narrow bands far below the $d$ bands, which shifts every band
+index of Chapter~\ref{ch:topology} up by eight ($N = 10$ pairs below the
+direct gap). Because the projector radii are much smaller, the cutoff must
+be considerably higher than for $q = 11$: converge it explicitly, starting
+from $E_{\mathrm{cut}}\approx 80$\,Ha.
+
+Tables~\ref{tab:q19lda} and \ref{tab:q19pbe} come from the same database
+as Table~\ref{tab:auhgh} (its entries \texttt{Au GTH-PADE-q19} and
+\texttt{Au GTH-PBE-q19}). Each block lists the upper triangle of a
+symmetric matrix.
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{@{}llrrr@{}}
+\toprule
+\multicolumn{5}{@{}l}{\textbf{LDA}, $Z_{\mathrm{ion}} = 19$:\quad
+$r_{\mathrm{loc}} = 0.49000000$,\ \ $C_1 = 9.07322639$,\ \ $C_2 = -0.34013367$}\\
+\midrule
+channel & & \multicolumn{1}{c}{$j=1$} & \multicolumn{1}{c}{$j=2$} & \multicolumn{1}{c}{$j=3$}\\
+\midrule
+$s$:\ $r_s = 0.28803780$ & $h_{1j}$ & $-5.90182040$ & $26.42537412$ & $-15.50837777$\\
+ & $h_{2j}$ & & $-59.33938963$ & $40.04245923$\\
+ & $h_{3j}$ & & & $-31.78271670$\\
+\midrule
+$p$:\ $r_p = 0.35586747$ & $h_{1j}$ & $-7.08858659$ & $8.19796427$ & $0$\\
+ & $h_{2j}$ & & $-9.69996213$ & $0$\\
+ & $h_{3j}$ & & & $0$\\
+ & $k_{1j}$ & $0.62807493$ & $1.81668773$ & $-1.65141098$\\
+ & $k_{2j}$ & & $-4.89888134$ & $3.90795165$\\
+ & $k_{3j}$ & & & $-2.77740200$\\
+\midrule
+$d$:\ $r_d = 0.33386175$ & $h_{1j}$ & $-8.82572349$ & $9.56535285$ & \\
+ & $h_{2j}$ & & $-10.84609065$ & \\
+ & $k_{1j}$ & $0.18880114$ & $0.03175114$ & \\
+ & $k_{2j}$ & & $-0.03600240$ & \\
+\bottomrule
+\end{tabular}
+\caption{HGH parameters for Au with 19 valence electrons, LDA (Hartree
+atomic units).}
+\label{tab:q19lda}
+\end{table}
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{@{}llrrr@{}}
+\toprule
+\multicolumn{5}{@{}l}{\textbf{PBE}, $Z_{\mathrm{ion}} = 19$:\quad
+$r_{\mathrm{loc}} = 0.49000000$,\ \ $C_1 = 8.36945885$}\\
+\midrule
+channel & & \multicolumn{1}{c}{$j=1$} & \multicolumn{1}{c}{$j=2$} & \multicolumn{1}{c}{$j=3$}\\
+\midrule
+$s$:\ $r_s = 0.29008402$ & $h_{1j}$ & $-5.98869002$ & $26.10502137$ & $-15.17621948$\\
+ & $h_{2j}$ & & $-58.38556050$ & $39.18483021$\\
+ & $h_{3j}$ & & & $-31.10199477$\\
+\midrule
+$p$:\ $r_p = 0.36150576$ & $h_{1j}$ & $-5.87695332$ & $4.73144606$ & $2.92710526$\\
+ & $h_{2j}$ & & $-0.72513863$ & $-6.92679530$\\
+ & $h_{3j}$ & & & $4.92291022$\\
+ & $k_{1j}$ & $0.18370022$ & $2.64213942$ & $-2.01606276$\\
+ & $k_{2j}$ & & $-6.48265855$ & $4.77087526$\\
+ & $k_{3j}$ & & & $-3.39068639$\\
+\midrule
+$d$:\ $r_d = 0.34037313$ & $h_{1j}$ & $-8.80458432$ & $9.49191532$ & \\
+ & $h_{2j}$ & & $-10.76282032$ & \\
+ & $k_{1j}$ & $0.15609346$ & $0.06062427$ & \\
+ & $k_{2j}$ & & $-0.06874145$ & \\
+\bottomrule
+\end{tabular}
+\caption{HGH parameters for Au with 19 valence electrons, PBE (Hartree
+atomic units).}
+\label{tab:q19pbe}
+\end{table}
+
+\paragraph{How these tables were verified.} (i) A script compares every
+number of Tables~\ref{tab:auhgh}, \ref{tab:q19lda} and \ref{tab:q19pbe}
+with the source file, which is itself byte-identical to the current CP2K
+distribution: all digits agree. (ii) The parameters were exercised in the
+self-consistent radial atom solver of Chapter~\ref{ch:verify} (Stage~1),
+extended to three projectors and, for PBE, to gradient corrections. If
+the 11- and 19-electron potentials describe the same atom, the levels
+they share must coincide --- and they do, to $0.15$\,mHa:
+\begin{center}\small
+\begin{tabular}{@{}llccccc@{}}
+\toprule
+ & & $6s$ & $5d_{3/2}$ & $5d_{5/2}$ & $6p_{1/2}$ & $6p_{3/2}$\\
+\midrule
+LDA & $q=11$ & $-0.22409$ & $-0.29705$ & $-0.24051$ & $-0.04859$ & $-0.02758$\\
+    & $q=19$ & $-0.22424$ & $-0.29695$ & $-0.24044$ & $-0.04846$ & $-0.02748$\\
+PBE & $q=11$ & $-0.21240$ & $-0.28794$ & $-0.23187$ & $-0.04235$ & $-0.02404$\\
+    & $q=19$ & $-0.21250$ & $-0.28787$ & $-0.23182$ & $-0.04239$ & $-0.02405$\\
+\bottomrule
+\end{tabular}
+\end{center}
+(Eigenvalues in Ha of the neutral, spherical, non-spin-polarized
+pseudo-atom, $5d^{10}6s^1$ with $6p$ empty; radial grid $h = 0.02$,
+$r_{\max} = 16$\,Bohr.) The 19-electron atoms have in addition the
+semicore levels $5s$ at $-3.988$ ($-3.973$)\,Ha and $5p_{1/2}$,
+$5p_{3/2}$ at $-2.655$, $-2.042$ ($-2.639$, $-2.034$)\,Ha for LDA (PBE):
+a spin--orbit splitting of the $5p$ shell of $16.7$ ($16.5$)\,eV. What
+has \emph{not} been done with the 19-electron potentials is a
+plane-wave calculation of the solid; the cutoff advice above is a
+starting point, not a tested value.

@@ -1,0 +1,284 @@
+\chapter{Hohenberg--Kohn and Kohn--Sham Theory}
+\label{ch:hkks}
+
+\section{Functional calculus in twenty minutes}
+
+DFT is written in the language of \emph{functionals} --- machines that eat a
+whole function and return a number. The total energy $E[n]$ is a functional
+of the density. You need exactly two tools.
+
+\paragraph{Functional derivative.} For a functional $F[n]$, the functional
+derivative $\fdv{F}{n(\rr)}$ is defined by the first-order response to an
+arbitrary small perturbation $\delta n(\rr)$:
+\begin{equation}
+F[n + \delta n] - F[n]
+= \int \fdv{F}{n(\rr)}\,\delta n(\rr)\, \dd\rr + O(\delta n^2).
+\label{eq:funcderivdef}
+\end{equation}
+It is the continuum analogue of the gradient: if $n$ were a vector with
+components $n_i$ (which it literally becomes on your real-space grid!), then
+$\delta F = \sum_i (\partial F/\partial n_i)\,\delta n_i$, and
+$\fdv{F}{n(\rr)}$ is just $\partial F/\partial n_i$ divided by the grid-cell
+volume. Three examples you will use constantly:
+\begin{align}
+F[n] &= \int \vext(\rr)\,n(\rr)\,\dd\rr
+&&\Longrightarrow&
+\fdv{F}{n(\rr)} &= \vext(\rr),
+\\[2pt]
+E_{\mathrm H}[n] &= \tfrac12 \iint
+\frac{n(\rr)\,n(\rr')}{|\rr - \rr'|}\, \dd\rr\, \dd\rr'
+&&\Longrightarrow&
+\fdv{E_{\mathrm H}}{n(\rr)} &= \int \frac{n(\rr')}{|\rr-\rr'|}\,\dd\rr'
+\equiv \vH(\rr),
+\label{eq:hartreederiv}
+\\[2pt]
+F[n] &= \int f\big(n(\rr), \nabla n(\rr)\big)\, \dd\rr
+&&\Longrightarrow&
+\fdv{F}{n(\rr)} &= \pdv{f}{n} - \nabla\cdot\pdv{f}{(\nabla n)},
+\label{eq:gradientfd}
+\end{align}
+the last being the Euler--Lagrange rule (integrate by parts once), needed for
+gradient-corrected functionals in Chapter~\ref{ch:xc}.
+
+\paragraph{Constrained minimization.} To minimize $E[n]$ subject to
+$\int n = N$, introduce a Lagrange multiplier $\mu$ and demand
+stationarity of $E[n] - \mu\big(\int n\,\dd\rr - N\big)$:
+\begin{equation}
+\fdv{E}{n(\rr)} = \mu \qquad \text{for all } \rr.
+\label{eq:eulerlagrange}
+\end{equation}
+The multiplier $\mu$ turns out to be the chemical potential (Fermi level).
+
+\section{The Hohenberg--Kohn theorems}
+
+Consider $N$ electrons with the universal pieces $\hat T_e + \hat V_{ee}$
+plus an external potential $\vext$. Different materials differ \emph{only}
+through $\vext$ (and $N$). The 1964 theorems of Hohenberg and Kohn establish
+that the ground-state density is a legitimate fundamental variable.
+
+\begin{theorem}[HK1: the density determines the potential]
+The ground-state density $n_0(\rr)$ of an interacting electron system
+determines the external potential $\vext(\rr)$ uniquely, up to an additive
+constant. Consequently $n_0$ determines the Hamiltonian, hence \emph{all}
+ground- and excited-state properties of the system.
+\end{theorem}
+
+\begin{proof}
+By contradiction, in two steps. Assume for simplicity non-degenerate ground
+states. Suppose two potentials $\vext^{(1)} \neq \vext^{(2)} + \mathrm{const}$
+give ground states $\Phi_1 \neq \Phi_2$ with the \emph{same} density $n_0$.
+(That $\Phi_1\neq\Phi_2$ follows because they satisfy Schr\"odinger equations
+with potentials differing by more than a constant.) By the variational
+principle, using $\Phi_2$ as a trial state for Hamiltonian $\Ha_1$:
+\begin{equation}
+E_1 < \braket{\Phi_2|\Ha_1|\Phi_2}
+= \braket{\Phi_2|\Ha_2|\Phi_2}
++ \braket{\Phi_2|\hat V_{\!1} - \hat V_{\!2}|\Phi_2}
+= E_2 + \int \big[\vext^{(1)} - \vext^{(2)}\big]\, n_0(\rr)\, \dd\rr .
+\end{equation}
+Swapping labels $1\leftrightarrow 2$:
+\begin{equation}
+E_2 < E_1 + \int \big[\vext^{(2)} - \vext^{(1)}\big]\, n_0(\rr)\, \dd\rr .
+\end{equation}
+Adding the two inequalities gives $E_1 + E_2 < E_1 + E_2$, a contradiction.
+Hence two essentially different potentials cannot share a ground-state
+density: the map $n_0 \mapsto \vext$ is single-valued.
+\end{proof}
+
+\begin{theorem}[HK2: variational principle for the density]
+There exists a universal functional $F_{\mathrm{HK}}[n]$ (the same for every
+material) such that
+\begin{equation}
+E_v[n] \equiv F_{\mathrm{HK}}[n] + \int \vext(\rr)\, n(\rr)\, \dd\rr
+\end{equation}
+satisfies $E_v[n] \geq E_0$ for every admissible density with $\int n = N$,
+with equality if and only if $n = n_0$.
+\end{theorem}
+
+\begin{proof}
+The cleanest construction is Levy's constrained search. Define
+\begin{equation}
+F_{\mathrm{HK}}[n] \equiv
+\min_{\Phi \to n} \braket{\Phi | \hat T_e + \hat V_{ee} | \Phi},
+\label{eq:levysearch}
+\end{equation}
+the minimum over all antisymmetric $N$-electron wavefunctions that yield the
+prescribed density $n$. This is manifestly universal: $\vext$ does not appear.
+Then for any $n$,
+\begin{equation}
+E_v[n]
+= \min_{\Phi\to n}\braket{\Phi|\hat T_e + \hat V_{ee}|\Phi}
++ \int \vext\, n
+= \min_{\Phi\to n}\braket{\Phi|\Ha_{\mathrm{el}}|\Phi}
+\;\geq\; \min_{\Phi}\braket{\Phi|\Ha_{\mathrm{el}}|\Phi} = E_0 ,
+\end{equation}
+because searching within a fixed density is more restrictive than searching
+over all wavefunctions. Minimizing over $n$ removes the restriction, so the
+minimum of $E_v[n]$ is $E_0$, attained at $n_0$.
+\end{proof}
+
+\begin{remark}
+These theorems are an existence statement, not a recipe: nobody knows
+$F_{\mathrm{HK}}[n]$ in closed form --- knowing it exactly would be
+equivalent to solving the many-body problem. The genius of Kohn and Sham
+(1965) was to isolate the \emph{large, known} parts of $F_{\mathrm{HK}}$ and
+approximate only the small remainder.
+\end{remark}
+
+\section{The Kohn--Sham construction}
+\label{sec:ks}
+
+The dominant contribution to the kinetic energy is well approximated by that
+of \emph{non-interacting} electrons with the same density. So: introduce an
+auxiliary fictitious system of $N$ non-interacting electrons moving in some
+effective potential $\veff(\rr)$, engineered so that its ground-state
+density equals the true interacting density. Non-interacting electrons are
+easy: they occupy single-particle orbitals $\psi_i(\rr)$ (for now spinless;
+spinors come in Chapter~\ref{ch:soc}) obeying a one-body Schr\"odinger
+equation, and
+\begin{equation}
+n(\rr) = \sum_{i} f_i\, |\psi_i(\rr)|^2 ,
+\qquad
+T_s[n] = \sum_i f_i \int \psi_i^*(\rr)
+\Big(-\tfrac{1}{2}\nabla^2\Big) \psi_i(\rr)\,\dd\rr,
+\label{eq:ksdensity}
+\end{equation}
+with occupations $f_i \in [0,1]$ and $\sum_i f_i = N$. (Here $i$ counts
+\emph{spin-orbitals}: one state, one electron at most. If spin is a pure
+spectator one can instead let each spatial orbital hold two electrons; we
+will not, because with spin--orbit coupling every state is its own spinor.)
+The many-electron wavefunction of non-interacting fermions is a single
+\emph{Slater determinant} of the occupied orbitals,
+$\Phi = (N!)^{-1/2}\det[\psi_i(\rr_j)]$ --- the antisymmetrized product
+``one electron in each orbital''; Eq.~\eqref{eq:ksdensity} is
+what Eq.~\eqref{eq:densitydef} gives for a determinant.
+$T_s$ is the \emph{non-interacting} kinetic energy --- not the true one, but
+its largest part, and crucially one we can evaluate exactly through the
+orbitals.
+
+Now \emph{define} the exchange--correlation functional as everything left
+over:
+\begin{equation}
+\boxed{\;
+F_{\mathrm{HK}}[n] = T_s[n] + E_{\mathrm H}[n] + \Exc[n]
+\;}
+\qquad\Longleftrightarrow\qquad
+\Exc[n] \equiv \big(T - T_s\big) + \big(V_{ee} - E_{\mathrm H}\big).
+\label{eq:excdef}
+\end{equation}
+$\Exc$ contains (i) the difference between true and non-interacting kinetic
+energies, (ii) the exchange energy --- the energy lowering from Pauli
+antisymmetry keeping same-spin electrons apart, (iii) the correlation energy
+--- the further lowering from electrons dynamically dodging one another
+beyond mean field, and (iv) the correction for the self-interaction hiding
+inside $E_{\mathrm H}$ (in $E_{\mathrm H}$ each electron feels its own
+charge). $\Exc$ is a small fraction of the total energy ($\sim$1--10\%), yet
+it contains all the chemistry; approximating it is Chapter~\ref{ch:xc}.
+
+\section{Deriving the Kohn--Sham equations}
+
+Apply the Euler--Lagrange condition \eqref{eq:eulerlagrange} to
+$E_v[n] = T_s[n] + E_{\mathrm H}[n] + \Exc[n] + \int \vext n$:
+\begin{equation}
+\fdv{T_s}{n(\rr)} + \vH(\rr) + \vxc(\rr) + \vext(\rr) = \mu ,
+\qquad
+\vxc(\rr) \equiv \fdv{\Exc}{n(\rr)} .
+\label{eq:eltrue}
+\end{equation}
+Now write the same stationarity condition for the fictitious non-interacting
+system in potential $\veff$:
+\begin{equation}
+\fdv{T_s}{n(\rr)} + \veff(\rr) = \mu' .
+\label{eq:elks}
+\end{equation}
+Equations \eqref{eq:eltrue} and \eqref{eq:elks} produce the same density if
+and only if
+\begin{equation}
+\boxed{\;
+\veff(\rr) = \vext(\rr) + \vH[n](\rr) + \vxc[n](\rr)
+\;}
+\label{eq:veff}
+\end{equation}
+(up to a constant). But the ground state of non-interacting electrons in
+$\veff$ is found by solving the one-body eigenproblem. Minimizing
+$E$ with respect to the orbitals themselves, subject to orthonormality
+$\braket{\psi_i|\psi_j} = \delta_{ij}$ (Lagrange multipliers
+$\varepsilon_{ij}$, diagonalized to $\varepsilon_i$), gives the same result
+directly: varying $\psi_i^*$,
+\begin{equation}
+\fdv{}{\psi_i^*(\rr)}\Big[E - \textstyle\sum_{jk}
+\varepsilon_{jk}\big(\braket{\psi_j|\psi_k} - \delta_{jk}\big)\Big] = 0
+\;\Longrightarrow\;
+\Big[-\tfrac12 \nabla^2 + \veff(\rr)\Big] \psi_i(\rr)
+= \varepsilon_i\, \psi_i(\rr).
+\label{eq:kseq}
+\end{equation}
+Equations \eqref{eq:ksdensity}, \eqref{eq:veff} and \eqref{eq:kseq} are the
+\textbf{Kohn--Sham equations}. Note the nonlinearity: $\veff$ depends on $n$,
+which depends on the $\psi_i$, which depend on $\veff$. The equations must be
+solved \emph{self-consistently} --- the fixed-point iteration at the heart of
+your program (Chapter~\ref{ch:algorithms}).
+
+\section{The total energy}
+
+Given a self-consistent solution, the ground-state energy is
+\begin{equation}
+E = T_s + \int \vext\, n\, \dd\rr + E_{\mathrm H}[n] + \Exc[n] + E_{NN}.
+\label{eq:etot1}
+\end{equation}
+A form better suited to computation eliminates $T_s$ using the eigenvalues.
+Multiply \eqref{eq:kseq} by $f_i\psi_i^*$, integrate, and sum:
+$\sum_i f_i \varepsilon_i = T_s + \int \veff\, n$. Hence
+\begin{equation}
+\boxed{\;
+E = \sum_i f_i\,\varepsilon_i
+\;-\; E_{\mathrm H}[n]
+\;-\; \int \vxc(\rr)\, n(\rr)\, \dd\rr
+\;+\; \Exc[n]
+\;+\; E_{NN}.
+\;}
+\label{eq:etot2}
+\end{equation}
+The corrections after the band-structure sum $\sum f_i\varepsilon_i$ are
+called \emph{double-counting} terms: the eigenvalue sum counts the Hartree
+energy twice (each electron feels the full potential of all electrons) and
+counts $\int \vxc n$ instead of $\Exc$. For a metal with smeared occupations
+an entropy term is added (Section~\ref{sec:smearing}). Both forms are
+worth coding: Eq.~\eqref{eq:etot1} (``direct'') and Eq.~\eqref{eq:etot2}
+(``eigenvalue sum'') must agree to rounding error at self-consistency, and
+a disagreement pinpoints a bookkeeping bug.
+
+\begin{keybox}{Interpretation warnings}
+The Kohn--Sham orbitals and eigenvalues belong to the \emph{fictitious}
+system. Their only rigorous roles are to build $n(\rr)$ and $T_s$.
+Nevertheless, the KS band structure of metals like gold is an excellent
+approximation to the measured quasiparticle bands (photoemission), and
+(for the exact functional) the highest occupied eigenvalue equals the exact
+chemical potential. Band
+\emph{gaps} of semiconductors are systematically underestimated --- a famous
+limitation that does not affect our metallic target.
+\end{keybox}
+
+\section{Spin-density functional theory}
+
+When a magnetic field couples to spin, or when SOC entangles spin and orbit,
+the theory is generalized (von Barth--Hedin 1972): the energy becomes a
+functional of the full spin-density matrix
+$n_{\alpha\beta}(\rr)$ of Eq.~\eqref{eq:spindensmat},
+$E = E[n_{\alpha\beta}]$, and the XC potential becomes a $2\times2$ matrix
+field,
+\begin{equation}
+v^{\mathrm{xc}}_{\alpha\beta}(\rr)
+= \fdv{\Exc}{n_{\beta\alpha}(\rr)}
+= \vxc(\rr)\,\delta_{\alpha\beta}
++ \mathbf{B}_{\mathrm{xc}}(\rr)\cdot\bm\sigma_{\alpha\beta},
+\label{eq:vxcmatrix}
+\end{equation}
+with an \emph{exchange--correlation magnetic field}
+$\mathbf{B}_{\mathrm{xc}} = \delta \Exc / \delta \mathbf{m}$. The Kohn--Sham
+orbitals become two-component spinors
+$\psi_i = (\psi_i^{\uparrow}, \psi_i^{\downarrow})^{\mathsf T}$ and the KS
+equation a $2\times 2$ matrix equation --- exactly the structure SOC requires,
+developed fully in Chapter~\ref{ch:soc}. For non-magnetic gold,
+$\mathbf{m} = 0$ and $\mathbf{B}_{\mathrm{xc}} = 0$ at self-consistency, but
+your data structures should support the general case.

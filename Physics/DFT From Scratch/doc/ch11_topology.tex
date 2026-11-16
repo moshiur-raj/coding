@@ -1,0 +1,655 @@
+\chapter{The Topology of Gold's Bands}
+\label{ch:topology}
+
+Everything computed so far --- energies, bands, densities of states --- is a
+\emph{number that varies continuously} when you change the lattice constant
+or the functional a little. This chapter extracts a quantity of a different
+kind: an \emph{integer}, $0$ or $1$, that is a property of the
+wavefunctions rather than of the energies and that cannot change under
+small perturbations. It is the $\mathbb{Z}_2$ topological invariant.
+Gold's value is $1$ (``nontrivial''), and the well-known surface state of
+the Au(111) surface is its experimental fingerprint.
+
+Nothing new has to be built. The three ingredients are already in your
+hands: the even/odd character of zone-boundary states
+(Section~\ref{sec:nfe}), parity and time reversal as permutations of the
+coefficient array (Section~\ref{sec:symmetry}), and the fixed-potential
+band solver \textsc{SolveBands} (Section~\ref{sec:nscf}). The chapter
+has two halves. Sections~\ref{sec:berry}--\ref{sec:z2def} explain what the
+invariant \emph{is}, in terms of where the electronic charge sits in the
+unit cell and how it moves; this leads to a general algorithm, the Wilson
+loop. Sections~\ref{sec:fukane}--\ref{sec:goldparity} then show that
+inversion symmetry collapses the whole computation to multiplying eight
+signs. You will do both, and they must agree.
+
+\section{What ``topological'' means}
+
+A doughnut and a coffee mug both have exactly one hole. You can deform one
+into the other smoothly; you cannot get rid of the hole without tearing.
+The number of holes is a \emph{topological invariant}: an integer that
+survives every smooth deformation.
+
+Band structures have invariants of the same kind. Take a group of bands
+separated from all higher bands by an energy gap. Deform the Hamiltonian
+smoothly (strain the crystal, change the potential) without ever closing
+that gap and without breaking time-reversal symmetry. Some properties of
+the group of wavefunctions cannot change under such a deformation, and for
+systems with spin--orbit coupling one of them is a single bit
+$\nu_0 \in \{0, 1\}$.
+\begin{itemize}[leftmargin=2em]
+\item $\nu_0 = 0$: the bands can be deformed into those of isolated atoms
+pulled far apart. Nothing special.
+\item $\nu_0 = 1$: they cannot. Somewhere in the Brillouin zone the bands
+are ordered ``the wrong way round'' compared with separated atoms --- a
+\textbf{band inversion} --- and no smooth change can undo it.
+\end{itemize}
+Why care about a bit? Because of what happens at a surface. Outside the
+crystal is vacuum, which is trivially $\nu_0 = 0$. If the crystal has
+$\nu_0 = 1$, the bit has to change across the surface, and it can only
+change where the gap closes. So the surface is \emph{forced} to host
+electronic states inside the bulk gap, and SOC makes them spin-polarized
+with the spin locked to the direction of motion. Those surface states are
+what experiments see.
+
+To say precisely what the bit measures we need one concept that has not
+appeared yet.
+
+\section{Where is the charge? Berry phases and Wannier centers}
+\label{sec:berry}
+
+\paragraph{The question.} A filled band contributes a lattice-periodic
+charge density. Ask a seemingly innocent question: \emph{where, within the
+unit cell, is the center of that band's charge?} The density alone cannot
+answer it --- any periodic density can be assigned to cells in many ways.
+The answer is hidden in how the cell-periodic functions $u_{n\kk}$
+\emph{change with} $\kk$.
+
+\paragraph{One band in one dimension.} Take a single isolated band on a 1D
+lattice of period $a$, with $u_k(x)$ on a mesh $k_j = 2\pi j/(N a)$,
+$j = 0,\dots,N{-}1$. Each $u_{k_j}$ comes out of the eigensolver with an
+arbitrary phase, so an individual overlap $\braket{u_{k_j}|u_{k_{j+1}}}$
+means nothing by itself. But multiply the overlaps around the closed loop
+of the Brillouin zone,
+\begin{equation}
+\mathcal W = \braket{u_{k_0}|u_{k_1}}\braket{u_{k_1}|u_{k_2}}\cdots
+\braket{u_{k_{N-1}}|u_{k_N}},
+\qquad u_{k_N}(x) \equiv \ee^{-\ii 2\pi x/a}\,u_{k_0}(x),
+\label{eq:berry1d}
+\end{equation}
+and every state appears once as a bra and once as a ket: all the arbitrary
+phases cancel. (The last factor closes the loop: $k_N = k_0 + 2\pi/a$ is
+the same Bloch state as $k_0$, and $\psi = \ee^{\ii kx}u_k$ then fixes
+$u_{k_N}$ as stated.) The phase of this product,
+\begin{equation}
+\phi = -\,\mathrm{Im}\ln \mathcal W \pmod{2\pi},
+\end{equation}
+is the \textbf{Berry phase} of the band (in one dimension also called the
+Zak phase). It is a genuine, computable property of the band, and its
+meaning is the answer to our question:
+\begin{equation}
+\boxed{\;\bar x = \frac{\phi}{2\pi}\,a \pmod a\;}
+\label{eq:wcc}
+\end{equation}
+is the center of charge of the band, measured from the origin of the cell
+--- the \textbf{Wannier charge center}. (``Wannier'' because it is the
+mean position of the localized Wannier function built from the band;
+``mod $a$'' because the charge center is only defined up to a lattice
+translation.)
+
+\emph{Why this is plausible.} In $\kk$-space the position operator acts as
+$\ii\,\partial/\partial k$ on $u_k$ (just as momentum acts as
+$-\ii\,\partial/\partial x$ in real space). For neighbouring mesh points,
+$\braket{u_k|u_{k+\delta}} \approx 1 + \delta\braket{u_k|\partial_k u_k}
+\approx \exp\!\big(-\ii\delta\, \braket{u_k|\ii\partial_k|u_k}\big)$, so
+$-\mathrm{Im}\ln$ of the product adds up
+$\delta \times(\text{local expectation of position})$ around the zone;
+dividing by the length $2\pi/a$ of the zone gives the average
+position. A check you can do by hand: for a band made of one atomic
+orbital sitting at position $x_0$ in each cell (tight-binding limit),
+$u_k(x) \propto \sum_R \ee^{-\ii k(x - x_0 - R)}\varphi(x-x_0-R)$, and
+Eq.~\eqref{eq:berry1d} gives $\phi = 2\pi x_0/a$ (all interior overlaps
+are real and positive on a fine mesh; the whole phase comes from the
+closing factor): $\bar x = x_0$. The charge is where the orbital is.
+
+\paragraph{Several bands: the Wilson loop.} For a group of $N_{\mathrm{occ}}$
+bands (which may cross or be degenerate among themselves, as long as the
+group is separated from the bands above), individual bands have no
+identity, so the overlaps become matrices
+\begin{equation}
+M^{(\kk,\kk')}_{mn} = \braket{u_{m\kk}|u_{n\kk'}}
+= \sum_{\GG,s} c^{s\,*}_{m\kk}(\GG)\, c^{s}_{n\kk'}(\GG),
+\qquad m,n = 1,\dots,N_{\mathrm{occ}},
+\label{eq:overlapM}
+\end{equation}
+(sum over the plane waves $\GG$ common to both spheres), and the loop
+product becomes a matrix, the \textbf{Wilson loop}
+\begin{equation}
+\mathcal W = M^{(\kk_0,\kk_1)}\, M^{(\kk_1,\kk_2)} \cdots
+M^{(\kk_{N-1},\,\kk_N)} .
+\label{eq:wilson}
+\end{equation}
+Under a change of basis within the group at any intermediate $\kk_j$ the
+product is unchanged; a change at $\kk_0$ conjugates $\mathcal W$ by a
+unitary matrix. Its \emph{eigenvalues} are therefore well defined. On a
+fine mesh they have modulus $\approx 1$, and their phases
+$\theta_j \in (-\pi,\pi]$, $j = 1,\dots,N_{\mathrm{occ}}$, give
+$N_{\mathrm{occ}}$ charge centers $\bar x_j = a\,\theta_j/2\pi$: the
+positions of the $N_{\mathrm{occ}}$ electrons per cell that the group of
+bands holds. (Sign conventions for $\theta$ differ between texts; none of
+what follows depends on the choice.)
+
+\paragraph{In three dimensions: centers that depend on $\kk_\perp$.} In
+the crystal, run the loop along one reciprocal direction only: fix the
+fractional coordinates $k_2, k_3$ and let $k_1$ go once around,
+$\kk_j = (j/N_1,\,k_2,\,k_3)$. The last overlap again closes the loop with
+the \emph{same} states as at $\kk_0$, relabeled: since
+$u_{\kk+\mathbf b_1}(\rr) = \ee^{-\ii\mathbf b_1\cdot\rr}u_{\kk}(\rr)$,
+\begin{equation}
+c_{\kk_0+\mathbf b_1}(\GG) = c_{\kk_0}(\GG + \mathbf b_1)
+\label{eq:closure}
+\end{equation}
+--- a shift of the Miller index $m_1$ by one; do \emph{not} solve again at
+$\kk_0 + \mathbf b_1$, which would return the same states with new random
+phases and destroy the cancellation. The result is a set of centers
+$\bar x_j(k_2,k_3)$ along $\mathbf a_1$ that depend on the transverse
+momentum: for each $(k_2,k_3)$ the crystal behaves like a 1D chain along
+$\mathbf a_1$, and $\theta_j(k_2,k_3)$ tells you where its electrons sit.
+
+\section{The \texorpdfstring{$\mathbb{Z}_2$}{Z2} invariant: how the centers flow}
+\label{sec:z2def}
+
+Fix $k_3$ and watch the $N_{\mathrm{occ}}$ centers $\theta_j(k_2)$ as $k_2$
+goes across the zone. They trace continuous curves on a cylinder ($\theta$
+is an angle). Time-reversal symmetry constrains these curves in two ways.
+\begin{itemize}[leftmargin=2em]
+\item $\theta_j(-k_2) = \theta_j(k_2)$ as a set: the picture for
+$k_2\in[-\tfrac12,0]$ is the mirror image of that for $[0,\tfrac12]$, so
+half the zone suffices.
+\item At $k_2 = 0$ and $k_2 = \tfrac12$ the 1D chain is itself
+time-reversal invariant, and by Kramers' theorem its centers are
+\emph{doubly degenerate}: the curves meet in pairs at both ends of the
+half zone.
+\end{itemize}
+Between the two ends the pairs split. The only question topology asks is
+how they recombine (compare the two panels of Fig.~\ref{fig:wcc}): each curve can return to the
+partner it started with, or the curves can \emph{switch partners}, each
+ending up paired with a curve that started in a different pair. Switching
+partners cannot be undone by any smooth deformation --- to do so two curves
+would have to pass through each other, and Kramers degeneracy protects the
+crossings at the ends. The parity of the number of partner switches is the
+invariant of the plane:
+\begin{equation}
+z(k_3) = \Big(\text{number of crossings of the line }
+\theta = \theta_{\mathrm{ref}} \text{ by the curves } \theta_j(k_2),\
+0\le k_2\le\tfrac12\Big) \bmod 2 .
+\label{eq:zcount}
+\end{equation}
+If every curve returns to its partner, any horizontal line is crossed an
+even number of times; if partners are switched, some curve must travel
+from one pair to the next and crosses the line an odd number of times.
+The result does not depend on $\theta_{\mathrm{ref}}$. Physically: as $k_2$
+advances through half the zone, a trivial band group shuffles its charge
+centers and puts them back; a nontrivial one hands a charge center over
+from one Kramers pair to the next, a net flow that cannot be stopped
+without closing the gap.
+
+A three-dimensional crystal has two independent time-reversal-invariant
+planes of this kind for each direction, $k_3 = 0$ and $k_3 = \tfrac12$.
+The \textbf{strong index} and one of the three \textbf{weak indices} are
+\begin{equation}
+\nu_0 = \big[z(k_3{=}0) + z(k_3{=}\tfrac12)\big] \bmod 2,
+\qquad
+\nu_3 = z(k_3{=}\tfrac12),
+\label{eq:nu0fromz}
+\end{equation}
+and $\nu_1$, $\nu_2$ follow from the planes $k_1 = \tfrac12$,
+$k_2 = \tfrac12$. The strong index is the robust one: $\nu_0 = 1$ means
+the two parallel planes disagree, which is what guarantees a protected
+state on \emph{every} surface. The full label is written
+$(\nu_0;\nu_1\nu_2\nu_3)$.
+
+\section{But gold is a metal}
+\label{sec:directgap}
+
+The construction needs a group of bands separated from the rest by a gap,
+and a metal has no gap at the Fermi level. Look closer, though: the
+definition never mentions the Fermi level or the occupations. It needs
+only that the highest band of the group and the next band do not touch
+\emph{at any single $\kk$} --- a ``direct gap'' everywhere, even if the
+top of the group at one $\kk$ lies above the bottom of the next band at
+another. Gold has exactly this between Kramers pair 6 and pair 7 (spinor
+bands 12 and 13). Pairs 1--6 are the five $d$ bands plus the $sp$ band
+that crosses $E_F$; pair 7 lies above them at every $\kk$:
+by $5.1$\,eV at $X$, $4.3$\,eV at $L$ and $19$\,eV at $\Gamma$ in the
+reference calculation of Chapter~\ref{ch:verify}. Away from the TRIM the
+gap is much smaller: it falls to $0.07$\,eV on the line $W$--$L$, and a
+search over the zone found a minimum of about $0.02$\,eV at a point on a
+mirror plane, $\kk \approx \tfrac{2\pi}{a}(0.68, 0.68, 0.18)$ (equivalent,
+by a reciprocal lattice vector and cubic symmetry, to
+$\tfrac{2\pi}{a}(0.82, 0.32, 0.32)$ inside the first zone). Small, but
+not zero.
+So the group is $N_{\mathrm{occ}} = 12$ spinor bands, six Kramers pairs,
+regardless of the fact that part of pair 6 is empty. (That gold's
+invariant defined this way is nontrivial was pointed out by Yan and
+co-workers in 2015.) The first step of any topology calculation on a metal
+is therefore to \emph{verify the direct gap} on a fine mesh.
+
+Two practical warnings follow from these numbers. First, a coarse mesh
+does not see the small gaps: the $8^3$ SCF mesh reports a minimum of
+$0.54$\,eV and a $20^3$ mesh $0.27$\,eV, so finish the check with a local
+minimization of $\varepsilon_{13}-\varepsilon_{12}$ started from the
+smallest values found. Second, it is spin--orbit coupling that keeps the
+two groups apart at such points: with $k^\ell = 0$ the same search finds
+the sixth and seventh bands \emph{touching} (gap below $10^{-4}$\,eV) at
+several points of the zone --- without SOC, bands of different mirror
+symmetry are free to cross. The invariant of gold is a spin--orbit effect not because
+SOC changes any parity, but because SOC makes the group of bands well
+defined.
+
+\section{The shortcut for inversion-symmetric crystals: parities}
+\label{sec:fukane}
+
+Following charge centers across the zone works for any crystal. For a
+crystal with inversion symmetry Fu and Kane (2007) proved that the answer
+is already fixed by the parities $\xi_m(\Gamma_i) = \pm1$ of the Kramers
+pairs at the eight TRIM $\Gamma_i$ (Section~\ref{sec:symmetry}). Multiply
+the parities of the $N$ pairs of the group at each TRIM, then multiply the
+eight results:
+\begin{equation}
+\delta_i = \prod_{m=1}^{N} \xi_m(\Gamma_i) ,
+\qquad\qquad
+\boxed{\;(-1)^{\nu_0} = \prod_{i=1}^{8} \delta_i\;}
+\label{eq:fukane}
+\end{equation}
+The weak index $\nu_j$ is the same product restricted to the four TRIM
+with $n_j = 1$.
+
+\paragraph{Why parities know about charge centers.} The connection to the
+previous section is short enough to sketch. Consider a Wilson loop along
+$k_1$ at one of the special values of $(k_2,k_3)$ where the 1D chain is
+time-reversal invariant; the loop passes through exactly two TRIM,
+$\Gamma_a$ (at $k_1 = 0$) and $\Gamma_b$ (at $k_1=\tfrac12$). Inversion
+maps a charge center $\bar x$ to $-\bar x$, so a center that is alone must
+sit at a point that is its own mirror image: $\bar x = 0$ (on the atom,
+$\theta = 0$) or $\bar x = a/2$ (between atoms, $\theta = \pi$). Which one?
+Exactly as in the two-plane-wave model of Section~\ref{sec:nfe}: a band
+whose states at $\Gamma_a$ and $\Gamma_b$ have the \emph{same} parity is
+centered on the atom; if the parities are \emph{opposite}, on the midpoint.
+For the whole group (centers may also come in mirror-image sets
+$\pm\theta$, which cancel),
+\begin{equation}
+\prod_{\text{pairs } m} \ee^{\ii\theta_m}
+= \prod_{m=1}^{N} \xi_m(\Gamma_a)\,\xi_m(\Gamma_b) = \delta_a\delta_b ,
+\label{eq:zakparity}
+\end{equation}
+one factor per Kramers pair: the number of pairs centered at
+$\theta = \pi$ is odd precisely when $\delta_a\delta_b = -1$. Now compare
+the two ends of the half zone in Eq.~\eqref{eq:zcount}. If the number of
+pairs sitting at $\theta=\pi$ changes from even at $k_2 = 0$ to odd at
+$k_2=\tfrac12$, one center must have travelled from $0$ to $\pi$ and
+thereby crossed a reference line once: $z = 1$. Hence
+$(-1)^{z} = \delta_a\delta_b\delta_c\delta_d$ over the four TRIM of the
+plane, and Eq.~\eqref{eq:nu0fromz} multiplies the two planes together into
+Eq.~\eqref{eq:fukane}. You will verify Eq.~\eqref{eq:zakparity}
+numerically below.
+
+\paragraph{The intuition.} For atoms pulled far apart, every band is built
+from one kind of atomic orbital and has the same parity $(-1)^\ell$ at
+every TRIM, so each band contributes $(\pm1)^8 = +1$ and $\nu_0 = 0$. To
+get $\nu_0 = 1$, an even state and an odd state must have swapped places,
+relative to the atomic ordering, at an odd number of TRIM. The formula
+counts band inversions.
+
+\section{Algorithm 1: the invariant from parities}
+\label{sec:goldparity}
+
+Your eigensolver returns \emph{some} orthonormal basis of each degenerate
+level, not parity eigenstates. That does not matter. With the permutation
+of Eq.~\eqref{eq:parityperm}, form the matrix of $\hat P$ among the lowest
+$2N$ spinor bands at a TRIM,
+\begin{equation}
+\Pi_{mn} = \braket{\psi_m|\hat P|\psi_n}
+= \sum_{\GG, s} c^{s\,*}_m(\GG)\; c^{s}_n(-\GG-\GG_0),
+\qquad m,n = 1,\dots,2N,
+\end{equation}
+and diagonalize it. Because $\hat P$ commutes with $\hat H$ and the set of
+$2N$ bands is not cut through the middle of a degenerate level, the
+eigenvalues come out as exactly $\pm1$, each in Kramers-degenerate
+pairs. If $N_-$ of the $2N$ eigenvalues are $-1$, then
+\begin{equation}
+\delta_i = (-1)^{N_-/2}.
+\label{eq:deltafromcount}
+\end{equation}
+
+\begin{algorithm}[H]
+\caption{$\mathbb{Z}_2$ invariant of gold from parities}
+\label{alg:z2}
+\begin{algorithmic}[1]
+\State Converge the SCF (SOC on); keep $V_{\mathrm{eff,loc}}$ fixed from
+here on (Section~\ref{sec:nscf})
+\State $N \gets 6$ \Comment{Kramers pairs below the direct gap}
+\State \textbf{Direct-gap check:} \Call{SolveBands}{} on a fine mesh and on
+the high-symmetry path; verify
+$\min_\kk\,(\varepsilon_{2N+1,\kk} - \varepsilon_{2N,\kk}) > 0$
+\For{each of the 8 TRIM $\kk_i = \tfrac12(n_1,n_2,n_3)$}
+\State $(\varepsilon, C) \gets$ \Call{SolveBands}{$\kk_i$;\
+$N_{\mathrm{want}} = 2N{+}2$;\ $\epsilon = 10^{-9}$}
+\State \textbf{assert} $\varepsilon_{2N+1} - \varepsilon_{2N} > 10^{-3}$\,Ha
+and bands pair up ($|\varepsilon_{2j} - \varepsilon_{2j-1}| < 10^{-8}$\,Ha)
+\State $\mathrm{perm}[g] \gets$ index of plane wave
+$(-m_1{-}n_1, -m_2{-}n_2, -m_3{-}n_3)$ for each plane wave $g = (m_1,m_2,m_3)$
+\State $\Pi_{mn} \gets \sum_{s,g}\, \overline{C[m,s,g]}\; C[n,s,\mathrm{perm}[g]]$
+for $m,n \le 2N$
+\Comment{$2N\times2N$, Hermitian}
+\State $\lambda \gets \mathrm{eigvalsh}(\Pi)$;\quad \textbf{assert} every
+$\big||\lambda_j| - 1\big| < 10^{-6}$
+\State $N_- \gets \#\{\lambda_j < 0\}$;\quad \textbf{assert} $N_-$ even;\quad
+$\delta_i \gets (-1)^{N_-/2}$
+\EndFor
+\State $\nu_0 \gets 0$ if $\prod_{i=1}^{8}\delta_i = +1$, else $1$
+\State $\nu_j \gets 0$ if $\prod_{i:\,n_j = 1}\delta_i = +1$, else $1$,
+for $j = 1,2,3$ \Comment{weak indices: four TRIM each}
+\State \Return $(\nu_0;\,\nu_1\nu_2\nu_3)$
+\end{algorithmic}
+\end{algorithm}
+
+The assertions are not decoration. $|\lambda| \ne 1$ means the band set
+cuts a degenerate level, or the eigenvectors are not converged, or the
+permutation is wrong; an odd $N_-$ means Kramers pairing is broken.
+
+\section{What to expect for gold, and why}
+
+\begin{center}
+\begin{tabular}{@{}lllcc@{}}
+\toprule
+TRIM & Even pairs (eV) & Odd pairs (eV) & $N_-/2$ & $\delta_i$\\
+\midrule
+$\Gamma$ ($\times 1$) & $-10.06$, $-5.45\,(\times2)$, $-4.24$, $-3.02\,(\times2)$ & none below $+15.97$ & 0 & $+1$\\
+$X$ ($\times 3$) & $-7.32$, $-7.03$, $-2.31$, $-2.09$, $-1.05$ & $+0.71$ & 1 & $-1$\\
+$L$ ($\times 4$) & $-7.56$, $-5.57$, $-4.38$, $-2.36$, $-1.63$ & $-1.22$ & 1 & $-1$\\
+\bottomrule
+\end{tabular}
+\end{center}
+The table lists the six lowest Kramers pairs at each TRIM with their
+energies relative to $E_F$ and their computed parities (reference
+calculation: LDA, $E_{\mathrm{cut}}=40$\,Ha). The seventh pair is even at
+$X$ ($+5.78$\,eV) and $L$ ($+3.13$\,eV) and odd at $\Gamma$.
+
+\begin{equation}
+(-1)^{\nu_0} = \underbrace{(+1)}_{\Gamma}\cdot\underbrace{(-1)^3}_{3X}
+\cdot\underbrace{(-1)^4}_{4L} = -1
+\qquad\Longrightarrow\qquad \nu_0 = 1 .
+\end{equation}
+Each weak index involves two $X$ and two $L$ points, giving $+1$: the
+result is $(\nu_0;\nu_1\nu_2\nu_3) = (1;000)$. Treat the table as a
+prediction to be confirmed by your own numbers, not as an input. The
+energies depend on the functional and the cutoff at the level of
+$0.1$\,eV; the parities do not.
+
+The pattern can be understood with nothing more than
+Sections~\ref{sec:nfe} and \ref{sec:symmetry}:
+\begin{itemize}[leftmargin=2em]
+\item \textbf{$d$ states are even everywhere.} A Bloch sum of an
+atom-centered orbital, evaluated at a TRIM, inherits the parity
+$(-1)^\ell$ of the orbital. Five $d$ orbitals give five even pairs at
+every TRIM.
+\item \textbf{At $\Gamma$} the lowest free-electron state is the constant
+plane wave $\GG = 0$, which is even ($s$-like). Odd states are far above
+($16$\,eV above $E_F$ in the table).
+\item \textbf{At a zone-boundary point} ($X$ or $L$) the two lowest free-
+electron states are degenerate, and the crystal potential splits them
+into the even, $s$-like $\cos$ state and the odd, $p$-like $\sin$ state
+of Eq.~\eqref{eq:nfeparity}. Which one is lower? In the two-plane-wave
+model that was decided by the sign of one Fourier component of the
+potential. In gold something else dominates: \emph{states of equal parity
+repel each other}. The even combination is pushed \emph{up} by the five
+even $d$ bands lying just below it; the odd one cannot mix with them and
+stays put. In gold (as in copper and silver) this repulsion is strong
+enough that the odd state ends up \emph{below} the even one at both $X$
+and $L$ --- the inverted order of Section~\ref{sec:nfe}. That is the band
+inversion. At $L$ the odd level sits $1.2$\,eV below $E_F$ and the
+even one $3.1$\,eV above; the gap between them is the ``$L$ gap''
+through which the necks of gold's Fermi surface pass.
+\end{itemize}
+Because there are four $L$ points, their signs cancel in $\nu_0$: the
+strong index is decided by $\Gamma$ versus $X$. The ordering at $L$
+matters for \emph{where} on a given surface the protected state appears.
+
+\paragraph{The measurable consequence.} Cut the crystal along a (111)
+plane. Photoemission on Au(111) shows a free-electron-like \emph{surface
+state} centered at the surface-zone center, about $0.5$\,eV below $E_F$,
+sitting inside the bulk $L$ gap. It is split into two parabolas of
+opposite spin, shifted in momentum (the Rashba splitting, first resolved
+by LaShell, McDougall and Jensen in 1996), with the spin locked
+perpendicular to the momentum. Yan \emph{et al.}\ showed that this
+long-known ``Shockley state'' is the topological surface state demanded by
+$\nu_0 = 1$: the bulk invariant computed here from eight parities is why
+that surface band must exist and must be spin--momentum locked. (To see
+the surface state itself you would need a slab calculation --- a natural
+sequel once the bulk code works.)
+
+\section{Algorithm 2: the invariant from Wilson loops}
+\label{sec:wilson}
+
+The parity shortcut exists only for inversion-symmetric crystals. The
+general method of Sections~\ref{sec:berry}--\ref{sec:z2def} is worth
+implementing: it is what you will need for any crystal without inversion,
+it gives an independent check on gold, and it lets you \emph{see} the
+topology.
+
+\begin{algorithm}[H]
+\caption{Wilson-loop $\mathbb{Z}_2$ on one plane (fixed $k_3 \in
+\{0,\tfrac12\}$)}
+\label{alg:wilson}
+\begin{algorithmic}[1]
+\For{$i = 0,\dots,N_2$} \Comment{$k_2 = i/(2N_2)$: from $0$ to $\tfrac12$
+inclusive}
+\State $(\varepsilon, C_j) \gets$ \Call{SolveBands}{} for the lowest $2N$
+bands at $\kk_j = (j/N_1,\, k_2,\, k_3)$, $j = 0,\dots,N_1{-}1$
+\State $C_{N_1} \gets C_0$ with every Miller index $m_1$ lowered by one
+\Comment{Eq.~\eqref{eq:closure}; do not re-solve}
+\State $\mathcal W \gets \mathbf 1_{2N}$
+\For{$j = 0,\dots,N_1{-}1$}
+\State $M \gets$ overlap matrix \eqref{eq:overlapM} between $C_j$ and
+$C_{j+1}$
+\State $(U, \Sigma, V^\dagger) \gets \mathrm{svd}(M)$;\quad
+record $\min\Sigma$;\quad
+$\mathcal W \gets \mathcal W\, U V^\dagger$
+\EndFor
+\State $\theta[i,\cdot] \gets$ phases of the eigenvalues of $\mathcal W$,
+sorted
+\EndFor
+\State $z \gets$ \Call{CountCrossings}{$\theta$}
+\Comment{Algorithm~\ref{alg:count}}
+\end{algorithmic}
+\end{algorithm}
+
+Line 7 replaces each overlap matrix by its nearest unitary matrix
+$UV^\dagger$. On a finite mesh $M$ is not quite unitary (its singular
+values are slightly below one, by an amount of order $1/N_1^2$); keeping
+only the unitary part makes $\mathcal W$ exactly unitary, so its
+eigenvalues lie exactly on the unit circle. A singular value near zero
+signals that the group of $2N$ bands is not the same group at the two
+neighbouring points --- the direct gap has closed, or the mesh is far too
+coarse. To compute the overlaps, scatter both coefficient arrays into the
+FFT box (or any common integer index) so that equal $\GG$ line up.
+
+Counting crossings ``by eye'' on a plot is how one checks the result;
+a program needs a rule. The standard one (Soluyanov and Vanderbilt)
+uses, as the reference line, the middle of the \emph{largest gap} between
+adjacent centers, and lets it move with $k_2$: whenever the gap center
+jumps from one step to the next, count the centers it jumped over.
+
+\begin{algorithm}[H]
+\caption{Counting partner switches by following the largest gap}
+\label{alg:count}
+\begin{algorithmic}[1]
+\Function{CountCrossings}{$\theta[i,j]$,\ $i = 0..N_2$,\ $j = 1..2N$}
+\Function{GapCenter}{$\vartheta$} \Comment{$\vartheta$: the $2N$ sorted angles of one row}
+\State find adjacent angles (cyclically, the last and the first are
+adjacent across $\pm\pi$) with the largest separation;\ \Return their
+midpoint on the circle
+\EndFunction
+\State $z \gets 0$;\quad $g \gets$ \Call{GapCenter}{$\theta[0,\cdot]$}
+\For{$i = 1,\dots,N_2$}
+\State $g' \gets$ \Call{GapCenter}{$\theta[i,\cdot]$}
+\State $z \gets z + \#\{\,j : \theta[i,j] \text{ lies on the shorter arc
+between } g \text{ and } g'\,\}$
+\State $g \gets g'$
+\EndFor
+\State \Return $z \bmod 2$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+Use $N_1 \approx 20$--$40$ points along the loop and enough $k_2$ values
+(start with 80) that the curves are smooth; if the count changes when
+$N_2$ is doubled, the mesh was too coarse. Run it on the planes $k_3 = 0$
+and $k_3 = \tfrac12$ and combine with Eq.~\eqref{eq:nu0fromz}.
+
+\paragraph{What the reference calculation finds.} Figure~\ref{fig:wcc}
+shows the twelve charge centers of gold on both planes ($N_1 = 24$,
+$N_2 = 80$). Because gold has inversion symmetry the picture is symmetric
+under $\theta\to-\theta$ at every $k_2$; most centers stay near
+$\theta = 0$ (the $d$ electrons, sitting on the atom) and the action is in
+the outermost curves.
+\begin{itemize}[leftmargin=2em]
+\item \textbf{Plane $k_3 = 0$.} At $k_2 = 0$ the loop passes through
+$\Gamma$ and an $L$ point ($\delta_\Gamma\delta_L = -1$): five Kramers
+pairs of centers sit at $\theta = 0$ and one at $\theta = \pi$, as
+Eq.~\eqref{eq:zakparity} demands. At $k_2 = \tfrac12$ it passes through an
+$L$ and an $X$ point ($\delta_L\delta_X = +1$): four pairs at $\theta = 0$
+and a mirror-image set at $\theta = \pm0.51\pi$ --- no pair at $\pi$. The
+pair that started at $\pi$ has come apart and its members have joined
+other partners: $z = 1$.
+\item \textbf{Plane $k_3 = \tfrac12$.} Both ends pass through one $L$ and
+one $X$ point and look identical (four pairs at $0$, a set at
+$\pm0.51\pi$). The curves make large excursions in between but return to
+the partners they started with: $z = 0$.
+\end{itemize}
+Hence $\nu_0 = (1+0) \bmod 2 = 1$ and $\nu_3 = 0$, in agreement with the
+parities.
+
+Now look at Fig.~\ref{fig:wcc} critically, because gold is a \emph{hard}
+case for this method and the figure shows it. The outer curves do not
+move smoothly: near $k_2 \approx 0.26$ and $0.43$ (left) and
+$k_2\approx 0.14$ and $0.37$ (right) they appear to jump. True charge
+centers are continuous functions of $k_2$ as long as the direct gap is
+open; the apparent jumps occur where the loop passes close to the points
+at which the gap nearly closes (Section~\ref{sec:directgap}: $0.02$\,eV).
+There the wavefunctions of bands 12 and 13 exchange character within a
+tiny region of $\kk$-space, the centers sweep across the circle within a
+correspondingly tiny interval of $k_2$, and the smallest singular value
+of the overlap matrices drops to $0.03$ --- far below the healthy range.
+Three consequences:
+\begin{itemize}[leftmargin=2em]
+\item The \emph{end points} $k_2 = 0, \tfrac12$ are unaffected (the gap
+there is large) and, through Eq.~\eqref{eq:zakparity}, already determine
+$z$ for an inversion-symmetric crystal. This is the solid part of the
+result.
+\item A crossing count that runs across an unresolved jump is not
+trustworthy. With $N_2 = 80$ Algorithm~\ref{alg:count} returned the
+values above; with $N_2 = 20$ it returned $z = 1$ on \emph{both} planes,
+i.e.\ the wrong $\nu_0$. An invariant that changes when the mesh is
+refined was not converged.
+\item The cure is local refinement: wherever the gap center of
+Algorithm~\ref{alg:count} moves by more than a fraction of the gap width
+between two $k_2$ values, or a singular value falls below $\sim0.3$,
+insert intermediate $k_2$ points (and increase $N_1$) until the curves
+are continuous. For a material with a comfortable direct gap none of this
+is needed; for gold it is the difference between a picture and a proof,
+and it is the reason the parity method is the primary tool here.
+\end{itemize}
+(In an inversion-symmetric crystal the largest gap between centers is
+degenerate with its mirror image, so the reference line of
+Algorithm~\ref{alg:count} may hop between the two; each hop passes an even
+number of centers and does not affect $z$.)
+
+\begin{figure}[H]
+\centering
+\pgfplotsset{wccplot/.style={width=0.5\textwidth, height=0.42\textwidth,
+  xmin=0, xmax=0.5, ymin=-1, ymax=1, xlabel={$k_2$},
+  ytick={-1,-0.5,0,0.5,1},
+  tick label style={font=\small}, label style={font=\small},
+  title style={font=\small}}}
+\begin{tikzpicture}
+\begin{axis}[wccplot, ylabel={$\theta/\pi$}, title={$k_3 = 0$:\ \ $z = 1$}]
+\addplot[only marks, mark=*, mark size=0.6pt, red!70!black] table[x index=0,y index=1] {figdata/wcc_k3_0.dat};
+\end{axis}
+\end{tikzpicture}\hfill
+\begin{tikzpicture}
+\begin{axis}[wccplot, yticklabels={}, title={$k_3 = \tfrac12$:\ \ $z = 0$}]
+\addplot[only marks, mark=*, mark size=0.6pt, red!70!black] table[x index=0,y index=1] {figdata/wcc_k3_half.dat};
+\end{axis}
+\end{tikzpicture}
+\caption{Wannier charge centers (Wilson-loop phases) of the twelve lowest
+spinor bands of gold across half the zone, from the reference calculation
+($E_{\mathrm{cut}} = 20$\,Ha, fixed self-consistent potential). $\theta$
+is periodic: $+\pi$ and $-\pi$ are the same point. Left: the Kramers pair
+at $\theta = \pm\pi$ for $k_2 = 0$ has no counterpart at $k_2 = \tfrac12$
+--- partners are switched. Right: the two ends match. The apparent jumps
+are unresolved rapid motion near the points of smallest direct gap (see
+text).}
+\label{fig:wcc}
+\end{figure}
+
+\section{Sanity checks}
+
+\begin{enumerate}[leftmargin=2em]
+\item \textbf{Empty lattice.} With $V = 0$ at $\Gamma$ the lowest state is
+even. At $X$ the two lowest spatial states are degenerate ($\times2$ for
+spin): $\Pi$ on those four spinor states must have eigenvalues
+$\{+1,+1,-1,-1\}$. This tests the permutation \eqref{eq:parityperm}
+without any physics.
+\item \textbf{The two-plane-wave model, live.} With the single-cosine
+potential of Stage~1 (Chapter~\ref{ch:verify}),
+$V(\rr) = 2V_0\cos(\GG_1\cdot\rr)$ and $\kk = \tfrac12\GG_1$, the two
+lowest levels must have parities $(+,-)$ in ascending order for $V_0<0$
+and $(-,+)$ for $V_0>0$, Eq.~\eqref{eq:nfeparity}. A band inversion made
+by hand.
+\item \textbf{$\Pi^2 = \mathbf 1$ and $\Pi = \Pi^\dagger$} to rounding,
+when the block of bands is not cut through a degenerate level.
+\item \textbf{$[\hat P, \hat H] = 0$ and $[\Theta,\hat H]=0$} for random
+spinors at each TRIM (Section~\ref{sec:symmetry}).
+\item \textbf{Count of even states.} At $\Gamma$ the lowest twelve spinor
+bands of gold must all be even.
+\item \textbf{SOC off.} The parity counts at the TRIM cannot depend on
+SOC: there the groups are separated by $4$--$19$\,eV, far more than any
+spin--orbit shift, so setting $k^\ell = 0$ must leave every $\delta_i$
+unchanged. What changes is the direct gap away from the TRIM
+(Section~\ref{sec:directgap}).
+\item \textbf{Parities versus Wilson loops.} On each of the lines
+$k_2 \in\{0,\tfrac12\}$ of each plane, the Wilson-loop phases must be
+pairwise degenerate, symmetric under $\theta\to-\theta$, and satisfy
+Eq.~\eqref{eq:zakparity} with the $\delta_i$ from Algorithm~\ref{alg:z2}.
+\item \textbf{Robustness.} Change $E_{\mathrm{cut}}$, the functional, or
+the lattice constant by a few percent: every $\delta_i$ and every $z$ must
+stay the same. A topological invariant that changes with the cutoff is a
+bug.
+\end{enumerate}
+
+\begin{gpubox}{GPU/JAX notes}
+The parity method is eight small eigenproblems plus one gather
+(\texttt{C[..., perm]}) and one $12\times12$ \texttt{eigvalsh} each ---
+negligible cost, and it batches over the eight TRIM like any other
+$\kk$ axis. The Wilson loop is a fixed-potential band calculation on
+$N_1 \times (N_2{+}1)$ points per plane, followed by a \texttt{scan} of
+small matrix products; the overlaps are one \texttt{einsum} over the
+coefficient arrays once both spheres are scattered onto a common index
+set (the FFT box works). The $12\times12$ SVDs and the final
+non-Hermitian \texttt{eig} are cheapest on the host. Both methods must run
+in double precision with tightly converged eigenvectors.
+\end{gpubox}
+
+\begin{keybox}{Summary}
+The centers of charge of a group of bands are computable from overlaps of
+neighbouring wavefunctions (Wilson loops). With time-reversal symmetry
+those centers come in Kramers pairs at the edges of the half zone, and the
+$\mathbb{Z}_2$ invariant records whether they switch partners in between.
+With inversion symmetry the same bit is the product of the parities of the
+Kramers pairs at the eight TRIM, Eq.~\eqref{eq:fukane}, obtained by
+applying the permutation $c(\GG) \to c(-\GG-2\kk)$ to your coefficient
+arrays. For gold both routes give $\nu_0 = 1$: the odd, $p$-like band lies
+below the even, $s$-like band at the zone boundary, and the spin-split
+surface state of Au(111) is the visible consequence.
+\end{keybox}

@@ -1,0 +1,275 @@
+\chapter{Introduction: What We Are Building and Why Gold}
+\label{ch:intro}
+
+\section{The goal}
+
+You are going to write, from scratch, a program that solves the quantum
+mechanics of a real crystalline solid. The input will be almost embarrassingly
+small: the chemical species (gold), the crystal structure (face-centered
+cubic), and a lattice constant. From this the program will predict, with no
+empirical fitting whatsoever, the electronic band structure, the total energy,
+the equilibrium lattice constant, the bulk modulus, the density of states,
+a topological invariant of bulk gold, the ingredients of its electrical
+conductivity, and its reflectivity spectrum and colour --- quantities you
+can check against experiment and against
+mature codes such as Quantum ESPRESSO, VASP, or ABINIT.
+
+The framework is \emph{Kohn--Sham density functional theory} (DFT), the
+workhorse of modern computational materials science. This document contains
+\emph{all} the theory and \emph{all} the algorithms you need, assuming only
+undergraduate quantum mechanics: the time-independent Schr\"odinger equation,
+Dirac notation, Hermitian operators, the variational principle, the
+hydrogen atom, spin-$\tfrac12$ algebra with Pauli matrices, and first-order
+perturbation theory. Everything
+else --- functional calculus, the Hohenberg--Kohn theorems, exchange and
+correlation, Bloch's theorem, pseudopotentials, relativistic corrections,
+iterative eigensolvers, self-consistency acceleration --- is developed here.
+
+No program listings appear in this document, by design: writing the code is
+your job, and it is how you will learn the method. Every algorithm is instead
+given as explicit mathematics plus pseudocode (the handful of JAX functions
+you need are named and explained in Chapter~\ref{ch:gpu}), and each
+computational chapter ends
+with notes on how the algorithm maps onto a massively parallel accelerator
+(GPU) under JAX: which loops become batched tensor contractions, which
+operations are FFTs, where \texttt{vmap}-style batching applies,
+and which numerical choices (block eigensolvers, Fourier-space mixing) exist
+\emph{specifically because} they parallelize well.
+
+\section{Why gold is the right ``hard'' first material}
+
+A first DFT code is usually tested on silicon: a light-element semiconductor
+where spin can be ignored and a coarse Brillouin-zone sampling suffices. This
+guide deliberately aims at something harder, and gold is the ideal choice,
+because it is
+\emph{physically} demanding while remaining \emph{structurally} trivial:
+
+\begin{enumerate}[leftmargin=2em]
+\item \textbf{One atom per primitive cell.} FCC gold has a single atom in the
+primitive cell. Your arrays stay small, debugging stays sane, and yet nothing
+essential is simplified away.
+
+\item \textbf{It is a metal.} There is no band gap. Occupation numbers are not
+just 0 or 2; you must locate a Fermi level, introduce fractional
+(smeared) occupations, sample the Brillouin zone densely, and stabilize the
+self-consistency loop against ``charge sloshing.'' These are exactly the
+algorithmic complications that separate a toy code from a real one
+(Chapters~\ref{ch:solids} and \ref{ch:algorithms}).
+
+\item \textbf{The $5d$ electrons make exchange--correlation matter.} Gold's
+valence configuration is $5d^{10}6s^1$. The filled, spatially compact $d$
+shell sits only $\sim$2--8\,eV below the Fermi level and hybridizes with the
+$6s$ band. The position of these $d$ bands --- and hence the computed optical
+absorption edge, lattice constant, and cohesive energy --- is sensitive to the
+exchange--correlation functional. You will implement both the local density
+approximation (LDA) and the PBE generalized gradient approximation and see
+their differences directly (Chapter~\ref{ch:xc}).
+
+\item \textbf{Spin--orbit coupling is enormous and observable.} With nuclear
+charge $Z=79$, the $5d$ electrons of gold move at an appreciable fraction of
+the speed of light near the nucleus. Spin--orbit coupling (SOC) splits the
+$d$ bands at the $\Gamma$ point by more than $1$\,eV --- not a small correction
+but a dominant feature of the band structure. Famously, relativity is why
+gold is yellow while silver (same column, $Z=47$) is white: relativistic
+stabilization of the $6s$ band and destabilization of the $5d$ band shift the
+interband absorption edge from the ultraviolet down into the blue. Your code
+will treat SOC non-perturbatively with two-component spinor wavefunctions
+(Chapter~\ref{ch:soc}).
+
+\item \textbf{It hides a topological invariant.} Although gold is a metal,
+its bands carry a nontrivial $\mathbb{Z}_2$ topological index, and the famous
+surface state on Au(111) is its fingerprint. This is not an afterthought
+bolted onto the project: the index is a property of the \emph{wavefunctions}
+your code produces, and every tool needed to extract it is introduced where
+it naturally belongs --- the parity of a zone-boundary state in the very
+first band-gap model (Section~\ref{sec:nfe}), inversion and time reversal as
+operations on plane-wave coefficients (Section~\ref{sec:symmetry}), and the
+fixed-potential band solver (Section~\ref{sec:nscf}).
+Chapter~\ref{ch:topology} then only has to assemble them.
+
+\item \textbf{Excellent reference data.} The experimental lattice constant
+($a = 4.0782$\,\AA), bulk modulus ($\approx 173$\,GPa), the photoemission
+$d$-band positions, and published DFT band structures at every level of
+theory give you unambiguous targets for verification
+(Chapter~\ref{ch:verify}).
+\end{enumerate}
+
+\begin{keybox}{The physical system}
+FCC gold. Primitive lattice vectors (with $a = 4.0782$\,\AA{}
+$= 7.7067$ Bohr):
+\[
+\mathbf{a}_1 = \tfrac{a}{2}(0,1,1),\qquad
+\mathbf{a}_2 = \tfrac{a}{2}(1,0,1),\qquad
+\mathbf{a}_3 = \tfrac{a}{2}(1,1,0),
+\]
+one Au atom at the origin. With a scalar-relativistic + SOC pseudopotential
+treating $5d^{10}6s^1$ (11 electrons) or $5s^25p^65d^{10}6s^1$ (19 electrons,
+``semicore,'' more accurate) explicitly.
+\end{keybox}
+
+\section{Units}
+
+We use \textbf{Hartree atomic units} throughout unless stated otherwise:
+$\hbar = m_e = e = 4\pi\varepsilon_0 = 1$. Then lengths are in Bohr radii
+($a_0 = 0.529177$\,\AA), energies in Hartree ($1\,\mathrm{Ha} = 27.2114$\,eV
+$= 2$\,Ry), and the speed of light is $c = 1/\alpha \approx 137.036$, where
+$\alpha$ is the fine-structure constant. The one-electron kinetic operator is
+$-\tfrac12\nabla^2$ and the Coulomb interaction between electrons is
+$1/|\rr_1-\rr_2|$. Atomic units eliminate an entire class of bugs; convert to
+eV and \AA{} only at the input/output boundary of the program.
+
+\section{Bird's-eye view of the whole machine}
+
+It helps to see the destination before the journey. The final program is a
+fixed-point iteration --- the \emph{self-consistent field} (SCF) loop ---
+wrapped around a large eigenvalue problem:
+
+\begin{enumerate}[leftmargin=2em]
+\item \textbf{Guess} an electron density $n(\rr)$ (e.g.\ a normalized Gaussian
+blob of valence charge on each atom).
+\item \textbf{Build the effective potential} $\veff[n](\rr)$: the sum of the
+ionic (pseudo)potential, the classical electrostatic (Hartree) potential of
+the density itself, and the exchange--correlation potential, which encodes
+all quantum many-body effects (Chapters~\ref{ch:hkks}--\ref{ch:xc}).
+\item \textbf{Solve} the single-particle Schr\"odinger-like (Kohn--Sham)
+equation in this potential at many points $\kk$ of the Brillouin zone, using
+a plane-wave basis, obtaining bands $\varepsilon_{n\kk}$ and two-component
+spinor wavefunctions $\psi_{n\kk}$ (Chapters~\ref{ch:solids},
+\ref{ch:soc}, \ref{ch:hamiltonian}). This is done with an iterative,
+GPU-friendly block eigensolver (Chapter~\ref{ch:algorithms}).
+\item \textbf{Occupy} the bands according to a smeared Fermi--Dirac-like
+distribution, locating the Fermi level so the electron count is correct.
+\item \textbf{Recompute the density} from the occupied wavefunctions.
+\item \textbf{Mix} the new density with the old ones (Pulay/Anderson mixing
+with Kerker preconditioning --- what keeps metallic cells stable) and go to step 2 until
+the density stops changing.
+\item \textbf{Evaluate} the total energy, band structure, density of
+states, and wavefunction-based quantities (parities, Berry phases,
+velocity matrix elements for transport and optics). (Forces
+on the atoms vanish by symmetry with one atom per cell, so they are not
+needed here; the equilibrium geometry is found from the energy as a function
+of the lattice constant.)
+\end{enumerate}
+
+Almost all floating-point work lives in step 3, and there it lives inside two
+kernels: \emph{batched 3D FFTs} and \emph{batched dense linear algebra}. Both
+are the native food of GPUs. That is not a coincidence --- the plane-wave
+formulation of DFT was co-evolved with vector and parallel hardware, and the
+algorithm choices in this document (LOBPCG over sequential Davidson,
+Fourier-space Kerker mixing, Monkhorst--Pack batching over $\kk$-points) are
+made with your JAX target explicitly in mind.
+
+\section{How to use this document}
+
+Read Chapters~\ref{ch:manybody}--\ref{ch:soc} for the physics, with pen and
+paper; they contain no programming. Chapters~\ref{ch:hamiltonian} and
+\ref{ch:algorithms} are the specification of the program, and
+Chapter~\ref{ch:gpu} translates it into JAX. Then \emph{build in the order
+of Chapter~\ref{ch:verify}}: every stage there has a number that your code
+must reproduce before you move on, so that at no point are you debugging
+more than one new ingredient. Three conventions will save you days:
+\begin{itemize}[leftmargin=2em]
+\item Boxes with a blue-grey frame summarize what must be remembered; boxes
+with a green frame contain implementation advice for JAX.
+\item Every formula that you will type into the computer comes with a
+\emph{numerical anchor} --- a value to compare against --- either next to it
+or in Chapter~\ref{ch:verify}. Use them all; a wrong constant is invisible
+in a band plot.
+\item The folder \texttt{verification/} distributed with this document
+holds the scripts that produced every reference number, including an
+independent JAX implementation written from this text alone. Treat it as
+the answer key: consult it only after your own attempt.
+\end{itemize}
+
+\section{Chapter map}
+
+\begin{itemize}[leftmargin=2em]
+\item \textbf{Ch.~\ref{ch:manybody}} --- the exact many-electron problem and
+why it is intractable; the Born--Oppenheimer approximation; the density as
+the central variable.
+\item \textbf{Ch.~\ref{ch:hkks}} --- functional calculus from zero; the
+Hohenberg--Kohn theorems with proofs; the Kohn--Sham construction and a full
+derivation of the Kohn--Sham equations.
+\item \textbf{Ch.~\ref{ch:xc}} --- exchange and correlation: the homogeneous
+electron gas, derivation of LDA exchange, the PW92 correlation
+parametrization, the PBE GGA, and the (non)collinear spin generalization
+needed once SOC is on.
+\item \textbf{Ch.~\ref{ch:solids}} --- crystals: Bravais and reciprocal
+lattices, Bloch's theorem (proved), plane-wave basis sets and cutoffs, the
+two-plane-wave model of a band gap, Brillouin-zone integration,
+Monkhorst--Pack meshes, metallic occupations and smearing, the Fermi level.
+\item \textbf{Ch.~\ref{ch:pseudo}} --- pseudopotentials: why all-electron
+plane-wave calculations are hopeless, norm conservation, the
+Kleinman--Bylander separable form, and the analytic relativistic HGH
+pseudopotentials you will use for gold.
+\item \textbf{Ch.~\ref{ch:soc}} --- relativity: from the Dirac equation to
+the Pauli Hamiltonian, the physical origin of SOC, $j$-dependent
+pseudopotentials, two-component spinor Kohn--Sham theory, time-reversal and
+inversion symmetry as explicit operations on your coefficient arrays, and
+what SOC does to gold's bands.
+\item \textbf{Ch.~\ref{ch:hamiltonian}} --- the full Hamiltonian in the
+plane-wave basis, term by term: kinetic, local via FFT, nonlocal via
+projectors, Hartree in reciprocal space, Ewald summation for the ion--ion
+energy, and the total-energy expression.
+\item \textbf{Ch.~\ref{ch:algorithms}} --- the algorithms: basis
+construction, matrix-free Hamiltonian application, preconditioned block
+eigensolvers (LOBPCG and blocked Davidson), subspace diagonalization,
+Fermi-level bisection, density construction, Kerker-preconditioned Pulay
+mixing, the complete SCF driver, and the fixed-potential solver used for
+all post-processing --- all as pseudocode.
+\item \textbf{Ch.~\ref{ch:gpu}} --- mapping everything onto JAX/GPU: tensor
+layouts, batching over $\kk$ and bands, FFT strategy, mixed precision,
+JIT-compatible control flow, and memory budgeting.
+\item \textbf{Ch.~\ref{ch:topology}} --- the topology of gold's bands:
+Berry phases and Wannier charge centers from scratch, the $\mathbb{Z}_2$
+invariant as a statement about how those centers flow, its evaluation from
+wavefunction parities and by Wilson loops, with pseudocode.
+\item \textbf{Ch.~\ref{ch:conductivity}} --- electrical conductivity: the
+velocity operator, the Drude plasma frequency from the Fermi surface, and
+an honest account of what a ground-state calculation cannot give (the
+scattering time).
+\item \textbf{Ch.~\ref{ch:colour}} --- the colour of gold: the dielectric
+function from interband transitions, the reflectivity, and the conversion
+of a reflectance spectrum into the colour a human eye sees.
+\item \textbf{Ch.~\ref{ch:verify}} --- a staged verification plan with
+quantitative targets, from the free-electron gas to the SOC-split $d$ bands
+of gold and its topological index, including reference numbers from an
+independent implementation of exactly the equations in this document.
+\item \textbf{Appendix~\ref{app:q19}} --- the semicore (19-electron)
+pseudopotential parameters.
+\end{itemize}
+
+\section{Notation at a glance}
+\label{sec:notation}
+
+The same few indices appear in every chapter; fix them now.
+\begin{center}
+\begin{tabular}{@{}lp{0.66\textwidth}@{}}
+\toprule
+Symbol & Meaning\\
+\midrule
+$\rr$, $\RR$ & position in space; lattice translation (or atomic position
+$\RR_a$)\\
+$\kk$, $\GG$ & wavevector in the Brillouin zone; reciprocal lattice vector\\
+$n$ (as an index), $\kk$ & band index and wavevector of a Bloch state
+$\psi_{n\kk}$\\
+$n(\rr)$, $\mathbf m(\rr)$ & electron density; magnetization density\\
+$s$, $\alpha$, $\beta$ $\in\{\uparrow,\downarrow\}$ & spinor component\\
+$c^{s}_{n\kk}(\GG)$ & plane-wave coefficients of a spinor Bloch state
+(the program's central array)\\
+$f_{n\kk} \in [0,1]$ & occupation of one spinor state (one electron at
+most)\\
+$w_{\kk}$ & Brillouin-zone weight of a $\kk$-point, $\sum_{\kk} w_{\kk} = 1$\\
+$\varepsilon_{n\kk}$, $\mu$ & Kohn--Sham eigenvalue; Fermi level (chemical
+potential)\\
+$\Omega$, $N_e$ & volume of the primitive cell; number of valence electrons
+per cell\\
+$\ell$, $m$, $i$ & angular momentum, its projection, and radial index of a
+pseudopotential projector\\
+$E_{\mathrm{cut}}$, $\sigma$ & plane-wave cutoff; smearing width\\
+\bottomrule
+\end{tabular}
+\end{center}
+A hat ($\hat H$) marks an operator; a tilde ($\tilde p$, $\tilde V$) marks
+a Fourier- or Bessel-transformed function. ``Pair'' always means a
+Kramers pair of spinor bands (two degenerate bands; Section~\ref{sec:symmetry}).

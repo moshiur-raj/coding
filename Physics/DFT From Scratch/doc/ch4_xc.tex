@@ -1,0 +1,379 @@
+\chapter{Exchange and Correlation}
+\label{ch:xc}
+
+This chapter builds the two functionals you will implement --- LDA (in the
+PW92 parametrization) and the PBE GGA --- from the ground up, then extends
+them to spinor/noncollinear densities as required by SOC. This is the only
+approximated physics in the whole code; everything else is numerics.
+
+\section{What exchange and correlation physically are}
+
+Take one electron sitting at $\rr$. The conditional density of the other
+$N-1$ electrons is depleted around it: same-spin electrons avoid it because
+of Pauli antisymmetry (\emph{exchange}), and all electrons avoid it because
+of Coulomb repulsion (\emph{correlation}). The missing charge --- exactly one
+electron's worth --- is called the \textbf{exchange--correlation hole}
+$n_{\mathrm{xc}}(\rr,\rr')$, satisfying the sum rule
+$\int n_{\mathrm{xc}}(\rr,\rr')\,\dd\rr' = -1$. One can show exactly that
+\begin{equation}
+\Exc[n] = \tfrac12 \iint
+\frac{n(\rr)\,\bar n_{\mathrm{xc}}(\rr,\rr')}{|\rr-\rr'|}\,
+\dd\rr\,\dd\rr' ,
+\end{equation}
+the electrostatic interaction of each electron with its own
+(coupling-constant-averaged) hole. Two consequences guide all approximations:
+$\Exc$ is negative and mostly \emph{local} --- the hole is centered on the
+electron and its long-range details matter less than its depth and sum rule.
+That is why approximating $\Exc$ by local information succeeds far beyond
+what one might expect.
+
+\section{The homogeneous electron gas}
+\label{sec:heg}
+
+The reference system for all local approximations: $N$ electrons in volume
+$V$ with a uniform neutralizing positive background, $n = N/V$ constant.
+Conventionally parametrized by the \textbf{Wigner--Seitz radius}
+\begin{equation}
+\frac{4}{3}\pi r_s^3 = \frac{1}{n}
+\qquad\Longleftrightarrow\qquad
+r_s = \left(\frac{3}{4\pi n}\right)^{1/3},
+\end{equation}
+the radius (in Bohr) of the sphere containing one electron on average.
+Valence densities of metals correspond to $r_s \approx 2$--$6$; gold's $6s$
+electrons have $r_s \approx 3$.
+
+\paragraph{Kinetic energy.} Non-interacting electrons in a box fill plane
+waves $\ee^{\ii\kk\cdot\rr}/\sqrt{V}$ up to the Fermi wavevector $k_F$.
+Counting states (2 spins, density of $\kk$-states $V/(2\pi)^3$):
+\begin{equation}
+N = 2\,\frac{V}{(2\pi)^3}\,\frac{4}{3}\pi k_F^3
+\;\Longrightarrow\;
+k_F = (3\pi^2 n)^{1/3},
+\qquad
+\frac{T_s}{N} = \frac{3}{5}\,\frac{k_F^2}{2}
+= \frac{3}{10}(3\pi^2 n)^{2/3}.
+\label{eq:heg_ts}
+\end{equation}
+
+\paragraph{Exchange energy --- full derivation.}
+Evaluate $\braket{\hat V_{ee}}$ in a Slater determinant of orbitals
+$\phi_i$. Antisymmetry produces two terms: the classical Hartree energy,
+and a negative term in which the two electrons swap orbitals --- the
+\emph{exchange energy}. Swapping is only possible between orbitals of the
+same spin, hence the sum over $\sigma$ (this is the Hartree--Fock
+expression):
+\begin{equation}
+E_x = -\frac{1}{2} \sum_{\sigma} \sum_{\kk,\kk'}^{\mathrm{occ}}
+\iint \frac{\phi_{\kk}^*(\rr)\phi_{\kk'}(\rr)\,
+\phi_{\kk'}^*(\rr')\phi_{\kk}(\rr')}{|\rr-\rr'|}\,\dd\rr\,\dd\rr'.
+\end{equation}
+With plane waves, the double integral gives the Fourier transform of the
+Coulomb interaction, $4\pi/|\kk - \kk'|^2$, times $1/V$:
+\begin{equation}
+E_x = -\frac{1}{2}\cdot 2 \cdot \frac{1}{V}
+\sum_{|\kk|<k_F}\sum_{|\kk'|<k_F} \frac{4\pi}{|\kk-\kk'|^2}
+= -\frac{V}{(2\pi)^6}
+\iint_{|\kk|,|\kk'|<k_F} \frac{4\pi}{|\kk-\kk'|^2}\,\dd\kk\,\dd\kk'.
+\end{equation}
+The inner integral is elementary (it is the electrostatic potential of a
+uniformly filled Fermi sphere in $\kk$-space):
+\begin{equation}
+\int_{|\kk'|<k_F} \frac{\dd\kk'}{|\kk - \kk'|^2}
+= 2\pi k_F\, S\!\left(\frac{k}{k_F}\right),
+\qquad
+S(x) = 1 + \frac{1-x^2}{2x}\ln\left|\frac{1+x}{1-x}\right| .
+\end{equation}
+Performing the remaining radial integral
+$\int_0^1 x^2 S(x)\,\dd x = \tfrac12$ yields the classic result
+\begin{equation}
+\frac{E_x}{N}
+= -\frac{3 k_F}{4\pi}
+= -\frac{3}{4}\left(\frac{3}{\pi}\right)^{1/3} n^{1/3}
+\qquad\Longrightarrow\qquad
+\varepsilon_x(n) = -\frac{3}{4}\left(\frac{3}{\pi}\right)^{1/3} n^{1/3}
+\approx -\frac{0.4582}{r_s}\ \mathrm{Ha}.
+\label{eq:ldax}
+\end{equation}
+Exchange per electron grows as $n^{1/3}$: denser gas, deeper exchange hole.
+
+\paragraph{Correlation energy.} No closed form exists. Its limits are known
+analytically --- the high-density (RPA) expansion
+$\varepsilon_c \to A \ln r_s + B + \dots$ and the low-density (Wigner
+crystal) expansion $\varepsilon_c \to -d_0/r_s + d_1/r_s^{3/2} + \dots$ ---
+and quantum Monte Carlo (Ceperley--Alder 1980) supplies essentially exact
+values in between. \textbf{Perdew--Wang 1992 (PW92)} interpolates all of this
+with the analytic form (for spin-unpolarized and fully polarized cases,
+$\zeta = 0, 1$):
+\begin{equation}
+\varepsilon_c(r_s)
+= -2 A (1 + \alpha_1 r_s)\,
+\ln\!\left[1 + \frac{1}{2A\big(\beta_1 r_s^{1/2} + \beta_2 r_s
++ \beta_3 r_s^{3/2} + \beta_4 r_s^{2}\big)}\right],
+\label{eq:pw92}
+\end{equation}
+with the constants of Table~\ref{tab:pw92}. Nonmagnetic gold only ever
+uses the first row. This smooth, infinitely differentiable expression is ideal
+for automatic differentiation: \emph{in JAX you will get $\vxc =
+\dd(n\varepsilon_{\mathrm{xc}})/\dd n$ for free via \texttt{grad}}, but you
+should still know the analytic derivative to verify it: since
+$n \propto r_s^{-3}$, for any function $\varepsilon(r_s)$
+\begin{equation}
+\frac{\dd (n\varepsilon)}{\dd n}
+= \varepsilon - \frac{r_s}{3}\,\frac{\dd \varepsilon}{\dd r_s},
+\label{eq:rsderiv}
+\end{equation}
+which gives $v_x = \tfrac43\varepsilon_x$ at once and $v_c$ after one
+differentiation of Eq.~\eqref{eq:pw92}. Writing $Q(r_s) = 2A\big(\beta_1
+r_s^{1/2} + \beta_2 r_s + \beta_3 r_s^{3/2} + \beta_4 r_s^2\big)$ for the
+denominator inside the logarithm,
+\begin{equation}
+\frac{\dd\varepsilon_c}{\dd r_s}
+= -2A\alpha_1 \ln\!\Big(1 + \frac{1}{Q}\Big)
++ \frac{2A(1+\alpha_1 r_s)}{Q^2 + Q}\,\frac{\dd Q}{\dd r_s},
+\qquad
+\frac{\dd Q}{\dd r_s} = 2A\Big(\frac{\beta_1}{2 r_s^{1/2}} + \beta_2
++ \tfrac32\beta_3 r_s^{1/2} + 2\beta_4 r_s\Big).
+\label{eq:pw92deriv}
+\end{equation}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+ & $A$ & $\alpha_1$ & $\beta_1$ & $\beta_2$ & $\beta_3$ & $\beta_4$\\
+\midrule
+$\varepsilon_c(r_s, \zeta{=}0)$ & 0.031091 & 0.21370 & 7.5957 & 3.5876 & 1.6382 & 0.49294\\
+$\varepsilon_c(r_s, \zeta{=}1)$ & 0.015545 & 0.20548 & 14.1189 & 6.1977 & 3.3662 & 0.62517\\
+$-\alpha_c(r_s)$ & 0.016887 & 0.11125 & 10.357 & 3.6231 & 0.88026 & 0.49671\\
+\bottomrule
+\end{tabular}
+\caption{PW92 constants for the form \eqref{eq:pw92}. The third row gives
+\emph{minus} the spin stiffness $\alpha_c$. These are the rounded constants
+of the original paper; some libraries use more digits for $A$
+($0.0310907$, $0.01554535$, $0.0168869$; the ``modified PW92'' used
+inside most PBE implementations), which changes $\varepsilon_c$ in the
+seventh decimal place. Either is acceptable --- but know which one you
+have when comparing total energies between codes to better than
+$10^{-6}$\,Ha.}
+\label{tab:pw92}
+\end{table}
+
+\section{The Local Density Approximation}
+
+The LDA declares: at each point of an inhomogeneous system, use the XC energy
+density of a homogeneous gas with the local density,
+\begin{equation}
+\boxed{\;
+\Exc^{\mathrm{LDA}}[n] = \int n(\rr)\,
+\varepsilon_{\mathrm{xc}}\big(n(\rr)\big)\, \dd\rr,
+\qquad
+\varepsilon_{\mathrm{xc}} = \varepsilon_x + \varepsilon_c .
+\;}
+\end{equation}
+The XC potential follows from Eq.~\eqref{eq:funcderivdef}:
+\begin{equation}
+\vxc^{\mathrm{LDA}}(\rr)
+= \varepsilon_{\mathrm{xc}}\big(n(\rr)\big)
++ n(\rr)\, \frac{\dd \varepsilon_{\mathrm{xc}}}{\dd n}\Big|_{n(\rr)} .
+\label{eq:vxclda}
+\end{equation}
+For the exchange part explicitly:
+$v_x = -\big(3n/\pi\big)^{1/3}$. On the computer, LDA is a pure pointwise
+(embarrassingly parallel) map over the real-space grid --- one fused GPU
+kernel.
+
+\paragraph{Spin polarization (LSDA).} With collinear spin densities
+$n_\uparrow, n_\downarrow$, define $n = n_\uparrow + n_\downarrow$ and the
+polarization $\zeta = (n_\uparrow - n_\downarrow)/n$. Exchange obeys the
+exact \emph{spin-scaling relation}
+$E_x[n_\uparrow,n_\downarrow] = \tfrac12 E_x[2n_\uparrow]
++ \tfrac12 E_x[2n_\downarrow]$, giving
+\begin{equation}
+\varepsilon_x(n,\zeta) = \varepsilon_x(n)\,
+\frac{(1+\zeta)^{4/3} + (1-\zeta)^{4/3}}{2}.
+\end{equation}
+Correlation uses the PW92 interpolation between $\zeta=0$ and $\zeta=1$,
+\begin{gather}
+\varepsilon_c(r_s,\zeta) = \varepsilon_c(r_s,0)
++ \alpha_c(r_s)\,\frac{f(\zeta)}{f''(0)}\,(1-\zeta^4)
++ \big[\varepsilon_c(r_s,1) - \varepsilon_c(r_s,0)\big] f(\zeta)\,\zeta^4,
+\\
+f(\zeta) = \frac{(1+\zeta)^{4/3} + (1-\zeta)^{4/3} - 2}{2^{4/3} - 2},
+\notag
+\end{gather}
+with $f''(0) = 1.709921$ and the three functions of
+Table~\ref{tab:pw92}; the two potentials are
+$v_{\mathrm{xc}}^{\sigma} = \partial (n\varepsilon_{\mathrm{xc}})/\partial
+n_\sigma$.
+
+\section{The PBE Generalized Gradient Approximation}
+\label{sec:pbe}
+
+LDA overbinds: for gold, all-electron-quality LDA calculations give a
+lattice constant $0.6\%$ too small ($4.053$ against a measured
+$4.078$\,\AA) and a bulk modulus $12\%$ too large ($195$ against
+$173$\,GPa). The next rung feeds the local
+\emph{gradient} to the functional. The natural dimensionless inhomogeneity
+measure is the \textbf{reduced gradient}
+\begin{equation}
+s(\rr) = \frac{|\nabla n|}{2 k_F n}
+= \frac{|\nabla n|}{2 (3\pi^2)^{1/3} n^{4/3}},
+\end{equation}
+the fractional change of the density over a Fermi wavelength (up to a
+factor of order one). PBE
+(Perdew--Burke--Ernzerhof 1996) writes exchange as LDA times an
+\emph{enhancement factor}:
+\begin{equation}
+E_x^{\mathrm{PBE}} = \int n\, \varepsilon_x(n)\, F_x(s)\, \dd\rr,
+\qquad
+F_x(s) = 1 + \kappa - \frac{\kappa}{1 + \mu s^2/\kappa},
+\label{eq:pbex}
+\end{equation}
+with $\kappa = 0.804$ and $\mu = \pi^2\beta/3 = 0.2195149727645171$.
+Every constant is fixed by an exact condition, not by fitting: $\mu$
+reproduces the correct linear response of the homogeneous gas (through its
+relation to the correlation gradient coefficient $\beta$ given below), and $\kappa$ saturates $F_x \le 1+\kappa$ to satisfy
+the Lieb--Oxford lower bound on $\Exc$. PBE correlation is
+\begin{equation}
+E_c^{\mathrm{PBE}} = \int n \Big[\varepsilon_c(r_s,\zeta)
++ H(r_s, \zeta, t)\Big] \dd\rr,
+\qquad
+H = \gamma \phi^3
+\ln\!\left[1 + \frac{\beta}{\gamma} t^2
+\frac{1 + A t^2}{1 + A t^2 + A^2 t^4}\right],
+\label{eq:pbec}
+\end{equation}
+where $t = |\nabla n| / (2\phi k_s n)$ is the gradient measured against the
+Thomas--Fermi screening wavevector $k_s = \sqrt{4 k_F/\pi}$,
+$\phi(\zeta) = [(1+\zeta)^{2/3} + (1-\zeta)^{2/3}]/2$,
+$\gamma = (1 - \ln 2)/\pi^2 = 0.0310906908696549$,
+$\beta = 0.06672455060314922$, and
+$A = (\beta/\gamma)\,[\exp(-\varepsilon_c/(\gamma\phi^3)) - 1]^{-1}$
+(not to be confused with the PW92 constant $A$; here $\varepsilon_c =
+\varepsilon_c(r_s,\zeta)$ is the LDA correlation energy per electron at
+that grid point). $H$ is built so that correlation vanishes in the
+rapid-variation limit and recovers the exact gradient expansion in the
+slow-variation limit. For nonmagnetic gold $\zeta = 0$ and $\phi = 1$
+throughout. (The PBE paper prints the rounded values $\beta = 0.066725$ and
+$\mu = 0.21951$; every production code uses the digits above, and the
+difference is visible --- $5\times10^{-6}$\,Ha in the total energy of gold.
+Type them in full.)
+
+For spin-polarized densities PBE exchange needs no new formula: apply the
+same spin-scaling relation as in the LSDA,
+$E_x^{\mathrm{PBE}}[n_\uparrow, n_\downarrow] = \tfrac12
+E_x^{\mathrm{PBE}}[2n_\uparrow] + \tfrac12 E_x^{\mathrm{PBE}}[2n_\downarrow]$,
+with Eq.~\eqref{eq:pbex} evaluated for each doubled spin density and its
+gradient.
+
+\paragraph{The GGA potential.} Because the integrand depends on $\nabla n$,
+Eq.~\eqref{eq:gradientfd} gives
+\begin{equation}
+\vxc^{\mathrm{GGA}}(\rr)
+= \pdv{f}{n}
+- \nabla \cdot \pdv{f}{(\nabla n)}
+= \pdv{f}{n}
+- \nabla \cdot \left[\pdv{f}{|\nabla n|}\,
+\frac{\nabla n}{|\nabla n|}\right],
+\qquad f \equiv n\,\varepsilon_{\mathrm{xc}}^{\mathrm{GGA}} .
+\label{eq:vxcgga}
+\end{equation}
+In practice write $f$ as a function of $n$ and of the squared gradient
+$\varsigma \equiv |\nabla n|^2$ (no square roots, no division by
+$|\nabla n|$). Since $\partial\varsigma/\partial(\nabla n) = 2\nabla n$, the
+chain rule turns the same formula into
+\begin{equation}
+\vxc^{\mathrm{GGA}} = \pdv{f}{n}
+- \nabla\cdot\Big[2\,\pdv{f}{\varsigma}\,\nabla n\Big].
+\label{eq:vxcgga2}
+\end{equation}
+In terms of $\varsigma$ the two gradient measures of PBE are simply
+$s^2 = \varsigma/(2k_Fn)^2$ and $t^2 = \varsigma/(2\phi k_s n)^2$, and only
+$s^2$ and $t^2$ enter Eqs.~\eqref{eq:pbex}--\eqref{eq:pbec}.
+The recipe is therefore: (1) $\nabla n$ by FFT; (2) pointwise $f$,
+$\partial f/\partial n$, $\partial f/\partial\varsigma$; (3) form the vector
+field $2(\partial f/\partial\varsigma)\nabla n$; (4) its divergence by FFT;
+(5) subtract. The energy is $\Exc = \int f\,\dd\rr$.
+\begin{gpubox}{GPU/JAX notes for XC}
+(i) Evaluate $\nabla n$ \emph{spectrally}: FFT the density,
+multiply by $\ii \GG$, inverse-FFT --- exact on the plane-wave grid, three
+batched FFTs, no finite-difference stencils. The divergence in
+\eqref{eq:vxcgga} is likewise done as $\mathrm{IFFT}[\,\ii\GG\cdot
+\mathrm{FFT}[\cdot]\,]$ (the ``White--Bird'' route). (ii) The pointwise parts
+of LDA/PBE are pure elementwise math, perfectly fused by XLA. (iii) You can
+implement \emph{only the energy density} $f(n, |\nabla n|^2)$ and obtain
+$\partial f/\partial n$ and $\partial f/\partial |\nabla n|^2$ by automatic
+differentiation --- one of the places where JAX genuinely shortens a DFT
+code. Guard against $n \to 0$ (clamp the density from below at
+$\sim10^{-12}$ before evaluating the functional) because negative powers
+of $n$ appear in the derivatives; with $f$ written in terms of
+$|\nabla n|^2$ there is no division by the gradient and no further guard
+is needed.
+\end{gpubox}
+
+\paragraph{Which functional for gold?} Implement both. LDA overbinds; PBE
+underbinds (lattice constant
+$2.3\%$ too large for gold in all-electron-quality calculations) but
+improves energetics. (With the 11-electron pseudopotential used here both
+lattice constants come out $0.03$--$0.04$\,\AA{} larger still; the
+computed values are in Chapter~\ref{ch:verify}, Stage~3.) Both place the $d$ bands a few tenths of an eV too
+close to the Fermi level compared with photoemission. Comparing them
+against experiment is itself a classic exercise: it teaches you that the XC
+functional is a controlled physical approximation, not a fudge.
+
+\section{Exchange--correlation with spinors: noncollinear DFT}
+\label{sec:noncollinear_xc}
+
+With SOC, orbitals are two-component spinors and the fundamental variable is
+the $2\times2$ matrix $n_{\alpha\beta}(\rr)$, i.e.\ $\{n(\rr),
+\mathbf{m}(\rr)\}$. But LSDA/PBE only know two scalar inputs
+$(n_\uparrow, n_\downarrow)$. The standard resolution (K\"ubler et al.) is
+the \textbf{locally collinear approximation}: at each grid point,
+diagonalize the spin-density matrix --- i.e.\ quantize spin along the local
+magnetization direction $\hat{\mathbf m}(\rr)$ --- and feed the eigenvalues
+\begin{equation}
+n_{\pm}(\rr) = \tfrac12\big[n(\rr) \pm |\mathbf{m}(\rr)|\big]
+\end{equation}
+to the ordinary collinear functional. The resulting potential matrix is
+\begin{equation}
+v^{\mathrm{xc}}_{\alpha\beta}(\rr)
+= \vxc\big(n, |\mathbf m|\big)\,\delta_{\alpha\beta}
++ B_{\mathrm{xc}}\big(n, |\mathbf m|\big)\,
+\hat{\mathbf m}(\rr)\cdot \bm\sigma_{\alpha\beta},
+\qquad
+\begin{aligned}
+\vxc &= \tfrac12\big(v^{+}_{\mathrm{xc}} + v^{-}_{\mathrm{xc}}\big),\\
+B_{\mathrm{xc}} &= \tfrac12\big(v^{+}_{\mathrm{xc}} - v^{-}_{\mathrm{xc}}\big),
+\end{aligned}
+\label{eq:noncoll_vxc}
+\end{equation}
+with $v^{\pm}_{\mathrm{xc}} = \partial (n\varepsilon_{\mathrm{xc}})/\partial
+n_\pm$: the XC magnetic field is parallel to the local magnetization. For
+nonmagnetic gold $\mathbf m = 0$ everywhere and only the scalar $\vxc(n)$
+survives --- but implement Eq.~\eqref{eq:noncoll_vxc} in general form; it
+costs one pointwise $2\times2$ decomposition and lets the same code later
+handle magnetic materials (e.g.\ FePt, where SOC + magnetism give magnetic
+anisotropy). Two practical notes: where $|\mathbf m|$ is below a small
+threshold the direction $\hat{\mathbf m}$ is undefined --- set
+$B_{\mathrm{xc}}\hat{\mathbf m} = 0$ there; and for a GGA the gradients
+fed to the functional are those of $n_\pm$, i.e.\ of $n$ and
+$|\mathbf m|$.
+
+\begin{keybox}{Sanity anchors for your implementation}
+For the unpolarized HEG at $r_s = 3$ (close to gold's $6s$ density):
+$\varepsilon_x = -0.15272$\,Ha, $\varepsilon_c^{\mathrm{PW92}} =
+-0.03694$\,Ha per electron, and $\vxc = -0.24668$\,Ha. At $r_s=2$:
+$\varepsilon_x = -0.22908$, $\varepsilon_c = -0.04476$. Fully polarized
+correlation at $r_s = 3$: $\varepsilon_c(\zeta{=}1) = -0.01991$. Reproduce
+these to $10^{-5}$ before going further. Also check $F_x(s\!=\!0)=1$ and
+$F_x(s\to\infty)=1.804$.
+
+One full PBE point, unpolarized, at $n = 0.05$\,Bohr$^{-3}$ and
+$\varsigma = |\nabla n|^2 = 0.01$\,Bohr$^{-8}$ (checked against the libxc library):
+$\varepsilon_{\mathrm{xc}} = f/n = -0.332094$\,Ha,
+$\partial f/\partial n = -0.392041$,
+$\partial f/\partial\varsigma = -0.083683$; the LDA values at the same
+density are $\varepsilon_{\mathrm{xc}} = -0.320387$ and
+$\vxc = -0.418065$. Agreement to six digits validates every constant in
+Eqs.~\eqref{eq:pbex}--\eqref{eq:pbec} at once.
+\end{keybox}

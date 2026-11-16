@@ -1,0 +1,238 @@
+\chapter{Mapping the Code onto JAX and the GPU}
+\label{ch:gpu}
+
+This chapter is the implementation blueprint: the JAX vocabulary you need,
+data layouts, batching strategy, precision policy, and JIT discipline. No
+program listings --- but every decision you will face is settled here.
+Nothing in it requires a GPU: the same program runs unchanged on a laptop
+CPU, where the small cases of Chapter~\ref{ch:verify} take a minute or two.
+Develop there; move to an accelerator when the physics is right.
+
+\section{The JAX you need}
+\label{sec:jaxprimer}
+
+JAX is NumPy with three additions: it runs on accelerators, it can
+differentiate functions, and it can compile them. If you can write NumPy
+you can write JAX (\texttt{import jax.numpy as jnp} and use \texttt{jnp}
+where you would use \texttt{np}), provided you respect a few rules that
+differ from NumPy. The complete list of what this project uses:
+\begin{center}\small
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.27\textwidth}p{0.68\textwidth}@{}}
+\toprule
+JAX feature & What it does, and where you use it\\
+\midrule
+\texttt{jax.config.update(} \texttt{"jax\_enable\_x64", True)} & Must be the first
+statement of the program. Without it JAX silently computes everything in
+single precision and none of the reference numbers can be reproduced.\\
+\texttt{jnp.fft.fftn}, \texttt{ifftn} with \texttt{axes=} & 3D
+transforms over the last three axes of a batch; same normalization as
+NumPy (Fourier conventions of Chapter~\ref{ch:solids}).\\
+\texttt{jnp.einsum}, \texttt{@} & All projections, Gram matrices and
+subspace rotations.\\
+\texttt{jnp.linalg.eigh} & Hermitian eigenproblems (complex input is
+fine); eigenvalues come back ascending.\\
+\texttt{x.at[idx].set(v)}, \texttt{.add(v)} & JAX arrays are immutable:
+\texttt{x[idx] = v} is an error. This form returns a modified copy; it
+is how coefficients are scattered into the FFT box. Reading
+(\texttt{x[idx]}) works as in NumPy. \emph{Pitfall:} the padded entries
+of a $\kk$-point's index array must point somewhere; if they point to box
+index 0 and you use \texttt{.set}, a padded zero can overwrite the true
+$\GG = 0$ coefficient. Use \texttt{.add} (padded coefficients are zero, so
+they add nothing).\\
+\texttt{jnp.where(cond, a, b)} & Replaces \texttt{if} on array values
+(masks, thresholds, soft locking). Both branches are evaluated, so make
+both finite: write \texttt{1/jnp.where(s > tau, s, 1.0)}, never
+\texttt{jnp.where(s > tau, 1/s, 0)} with a zero in \texttt{s}.\\
+\texttt{jax.jit(f)} & Compiles \texttt{f} for fixed array shapes and
+dtypes. Inside, Python \texttt{if}/\texttt{while} may not depend on array
+\emph{values}; loops with a fixed count are simply unrolled.\\
+\texttt{jax.vmap(f)} & Turns a function written for one $\kk$-point (or
+one grid point) into one for a whole batch. Write Algorithms
+\ref{alg:applyh}--\ref{alg:lobpcg} for a single $\kk$ and
+\texttt{vmap} them.\\
+\texttt{jax.lax.map(f, xs)} & Like \texttt{vmap} but sequential: use it
+where a full batch would not fit in memory (density build, large
+meshes).\\
+\texttt{jax.grad(f)} & Derivative of a scalar function. Gives $\vxc$
+from the XC energy density (Chapter~\ref{ch:xc}): \texttt{grad} of
+$f(n,\varsigma)$ with respect to each argument, then \texttt{vmap} over
+grid points.\\
+\bottomrule
+\end{tabular}
+\end{center}
+Three habits prevent most JAX-specific trouble. First, do all
+geometry-time setup (the integer bookkeeping of Algorithm~\ref{alg:basis},
+projector tables, Ewald) in ordinary NumPy and convert the finished arrays
+with \texttt{jnp.array}; only the numerical kernels need to be JAX.
+Second, keep the outer SCF loop, the Fermi-level bisection and the Pulay
+solve in plain Python at first, calling jitted kernels from it --- you can
+print and inspect everything. Third, the first call of a jitted function
+is slow (it compiles) and it recompiles whenever a shape changes; give
+every $\kk$-point the same padded shape so that this happens once.
+
+\section{The parallelism inventory}
+
+Plane-wave DFT exposes four nested, independent axes of parallelism:
+\begin{center}
+\begin{tabular}{@{}llll@{}}
+\toprule
+Axis & Size (Au, $q{=}11$) & Independence & GPU mapping\\
+\midrule
+$\kk$-points & $N_k \sim 10^3$ (full $12^3$ mesh)
+& fully independent linear algebra & leading batch dim\\
+Bands & $N_b \sim 24$ & coupled only via Rayleigh--Ritz & block/GEMM dim\\
+Spinor & 2 & coupled by SOC and $\mathbf B_{\mathrm{xc}}$
+& folded into band dim\\
+$\GG$ / grid & $N_G \sim 2{\times}10^3$, grid $\sim 40^3$
+& elementwise / FFT & thread-level (XLA)\\
+\bottomrule
+\end{tabular}
+\end{center}
+The design rule: \textbf{never write a loop over any of these axes ---
+express every operation as one array program over the full
+$[N_k, N_b, 2, N_G^{\max}]$ tensor}, and let vectorized primitives
+(\texttt{vmap}, batched FFT, batched GEMM, batched \texttt{eigh}) fill the
+device. A $12^3$ mesh $\times$ 24 bands $\times$ 2 spin components $\approx
+8\times10^4$ FFTs of size $\sim 36^3$ per Hamiltonian application: enough
+to saturate any current accelerator (and too many to hold in memory at
+once --- see the memory budget below).
+
+\section{Data layout and static shapes}
+
+\begin{itemize}[leftmargin=2em]
+\item \textbf{Wavefunctions} $C$: complex array $[N_k, N_b, 2, N_G^{\max}]$.
+Each $\kk$-point's cutoff sphere has a different size $N_G(\kk)$; pad to
+$N_G^{\max} = \max_\kk N_G(\kk)$ and carry a boolean mask
+$[N_k, N_G^{\max}]$. Masked entries are kept exactly zero (multiply by the
+mask after every operation that could pollute them). Padding overhead is a
+few percent; the reward is one static shape for everything, which JAX/XLA
+requires for compilation and which makes batched FFT/GEMM trivial.
+\item \textbf{Sphere $\leftrightarrow$ box maps}: for each $\kk$, a
+precomputed integer array of linear FFT-box indices for its $\GG$ sphere.
+Pad-and-scatter ($\texttt{zeros(box).at[idx].add(coeffs)}$-style) and
+gather are the only ``indexing'' operations in the code.
+\item \textbf{Fields} ($n$, $\mathbf m$, potentials): real/complex arrays on
+the dense grid $[N_1, N_2, N_3]$ (and their Fourier images). Mixing history:
+$[M_{\mathrm{hist}}, 4, N_1, N_2, N_3]$ in Fourier space.
+\item \textbf{Projectors}: complex $[N_k, N_{\mathrm{proj}}, N_G^{\max}]$;
+coupling blocks $D$: complex
+$[N_{\mathrm{proj}} \times 2, N_{\mathrm{proj}} \times 2]$ block-diagonal
+(store dense; it is tiny).
+\end{itemize}
+
+\section{The seven kernels}
+
+The entire program reduces to seven device kernels; everything else is glue.
+\begin{enumerate}[leftmargin=2em]
+\item \textbf{Batched zero-pad / gather} between sphere and FFT box.
+\item \textbf{Batched 3D FFT / IFFT} over the $[N_k \times N_b \times 2]$
+batch. In JAX, \texttt{jnp.fft.fftn} over the last three axes of a 4-D array
+is already batched; sizes with small prime factors keep cuFFT on fast paths.
+\item \textbf{Elementwise field kernels}: kinetic multiply, local-potential
+multiply, XC evaluation, Kerker filter, preconditioner, smearing functions.
+XLA fuses chains of these into single kernels automatically.
+\item \textbf{Batched tall GEMMs}: projections $B^{\dagger}C$ and expansions
+$B(DP)$; subspace products $S^{\dagger}(HS)$; block updates $SY$. These are
+\texttt{einsum}s over the $[N_k]$ batch.
+\item \textbf{Batched small \texttt{eigh}}: the $3N_b \times 3N_b$
+Rayleigh--Ritz problem and the $N_b\times N_b$ Gram matrices of
+\textsc{Orthonormalize} (Algorithm~\ref{alg:ortho}; four calls per
+iteration), batched over $\kk$
+(\texttt{vmap(eigh)}). No Cholesky and no QR anywhere: \texttt{eigh} never
+fails, which matters because a jitted program cannot branch on a failed
+factorization.
+\item \textbf{Global reductions}: density accumulation
+($\sum_{n\kk} w f |\psi|^2$ --- an einsum-reduction after the IFFT batch),
+electron count for Fermi bisection, residual norms, energies.
+\item \textbf{Scatter of constants}: structure factors, projector tables,
+Ewald --- geometry-time, negligible.
+\end{enumerate}
+
+\section{Precision policy}
+
+\begin{itemize}[leftmargin=2em]
+\item Run wavefunctions and FFTs in \textbf{complex64} (single precision)
+during the bulk of the SCF: half the memory and typically $2$--$4\times$
+the speed of double precision (more on consumer GPUs, whose double-precision
+throughput is throttled).
+\item Single precision has a floor: residuals cannot be pushed much below
+$\sim10^{-5}$ and energies carry $\sim10^{-6}$ relative noise. Finish with
+a few SCF iterations --- and do all band-structure, $E(V)$ and topology
+post-processing --- in \textbf{complex128}. The tight tolerances quoted
+elsewhere in this document ($10^{-8}$ and below) refer to double
+precision.
+\item Accumulate \textbf{energies, the density, and the small Gram and
+Rayleigh--Ritz matrices in float64/complex128}. The subspace matrices are
+tiny, so promoting them is free and removes the main weakness of
+single-precision LOBPCG (loss of orthogonality). In single precision you
+will also need to raise the discard thresholds of
+Algorithm~\ref{alg:lobpcg} --- as a starting point, to about
+$10^{-5}$ (for $W$) and $10^{-3}$ (for $P$): a direction that is linearly
+dependent to seven digits carries no information in a seven-digit
+arithmetic.
+\item \textbf{Write and validate the whole program in double precision
+first} (every reference number of Chapter~\ref{ch:verify} is a
+double-precision number). Single precision is an optimization for later:
+be \emph{explicit} about dtypes at every array creation, keep full
+float64 as a debug switch --- energy differences between the two runs
+localize precision bugs instantly.
+\item Target after the double-precision finish: total energy reproducible
+to $\lesssim 10^{-6}$\,Ha/atom; eigenvalues to $10^{-7}$\,Ha.
+\end{itemize}
+
+\section{JIT discipline}
+
+\begin{itemize}[leftmargin=2em]
+\item \textbf{One jitted SCF step}: a single function
+(fields, $X$, history) $\mapsto$ (fields', $X'$, history', scalars),
+containing the eigensolver steps, Fermi search, density build, and mixing.
+The Python-level SCF loop calls it repeatedly; convergence is checked on the
+returned scalars. (A fully on-device \texttt{lax.while\_loop} SCF is
+possible but makes debugging miserable --- do it last, if ever.)
+\item \textbf{Static shapes everywhere}: fixed $N_b$, fixed LOBPCG
+iterations per SCF step, fixed mixing history length (a ring buffer),
+fixed bisection iteration count. Convergence-dependent behavior is expressed
+through \texttt{where}-masks, not shape changes.
+\item \textbf{No host--device sync inside the step}: never branch Python
+control flow on device values inside the jitted region; return diagnostics
+as arrays.
+\item \textbf{Multi-GPU} (when you outgrow one device): shard the leading
+$\kk$ axis (\texttt{shard\_map}); the only cross-device
+communication per SCF step is (i) an all-reduce of the density and (ii) an
+all-reduce of the eigenvalue histogram for the Fermi search --- a few MB.
+This near-embarrassing parallelism over $\kk$ is why the algorithmic choices
+of Chapter~\ref{ch:algorithms} scale.
+\item \textbf{Autodiff opportunities}: XC potentials via \texttt{grad} of the
+energy density (Ch.~\ref{ch:xc}); later, forces and stress via
+differentiating the total energy with respect to atomic positions and
+strain --- the Hellmann--Feynman theorem emerges automatically. Design the
+energy as a pure function of (parameters, density, wavefunctions) from day
+one.
+\end{itemize}
+
+\section{Memory budget (sanity check)}
+
+Full $12^3$ MP mesh, $N_b = 24$, $N_G^{\max} \approx 1500$ ($E_{\mathrm{cut}}
+= 40$\,Ha; $\approx 2500$ at $60$\,Ha), complex64:
+wavefunctions $1728 \times 24 \times 2 \times 1500 \times 8\,\mathrm{B}
+\approx 1.0$\,GB. LOBPCG holds six such arrays ($X, W, P$ and their images
+under $H$), so budget $\sim 6$\,GB; time-reversal symmetry halves $N_k$
+for free (Section~\ref{sec:symmetry}). The FFT boxes are the real constraint: all states at once on a
+$36^3$ grid would be $1728\times24\times2\times36^3\times8\,\mathrm{B}
+\approx 31$\,GB, so the $\hat H$-apply and the density build \emph{must} be
+processed in $\kk$-chunks (a static chunk size, scanned with
+\texttt{lax.map}; 64 $\kk$-points per chunk is $\sim 1$\,GB). Fields and
+mixing history are megabytes.
+
+\begin{keybox}{Recommended parameters for the first converged gold run}
+HGH PBE $q{=}11$; $E_{\mathrm{cut}} = 40$\,Ha (FFT grid $36^3$);
+$\Gamma$-centered $12{\times}12{\times}12$ mesh; Methfessel--Paxton
+order 1, $\sigma = 0.01$\,Ha; $N_b = 24$ spinor bands; LOBPCG: 8
+iterations in the first SCF step, 3 per step afterwards, Teter
+preconditioner; Pulay history 8, Kerker $A = 0.8$, $k_{TF} = 1.0$;
+convergence $\|R\| < 10^{-7}$ (Eq.~\eqref{eq:resnorm}). Expect about ten
+SCF iterations. Then converge upward: $E_{\mathrm{cut}} \to 60$, mesh
+$\to 16^3$, and verify observables move by less than your target
+accuracy. For debugging, the small case of Chapter~\ref{ch:verify}
+(Stage~3, Table~\ref{tab:smallcases}) runs in about a minute on a CPU.
+\end{keybox}

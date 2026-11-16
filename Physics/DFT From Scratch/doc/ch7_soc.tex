@@ -1,0 +1,449 @@
+\chapter{Relativity and Spin--Orbit Coupling}
+\label{ch:soc}
+
+Gold is the textbook relativistic solid. The $1s$ electrons of Au move with
+$\langle v \rangle / c \sim Z\alpha \approx 0.58$; relativity contracts the
+$s$ shells, which screens the nucleus more effectively, which expands and
+destabilizes the $d$ shells. The net effect on the valence structure is a
+$6s$ band pulled down and a $5d$ band pushed up, narrowing the $5d \to 6s$
+interband gap from the UV (as in silver) to $\sim 2.4$\,eV --- absorbing blue
+light and reflecting yellow. On top of these \emph{scalar} relativistic
+shifts, the spin of the electron couples to its orbital motion and splits the
+$d$ levels by $\sim 1.5$\,eV. This chapter derives where these effects come
+from and exactly how they enter your Hamiltonian.
+
+\section{From Dirac to Pauli}
+
+The relativistic electron obeys the Dirac equation. For a particle in a
+potential $V(\rr)$, the four-component Dirac Hamiltonian is
+\begin{equation}
+\Ha_D = c\, \bm\alpha \cdot \hat{\mathbf p} + \beta c^2 + V(\rr),
+\end{equation}
+with the standard $4\times4$ matrices $\bm\alpha, \beta$. Writing the
+four-spinor as large and small components $(\varphi, \chi)$ and eliminating
+$\chi$ in favor of $\varphi$ (valid when $E - V \ll c^2$, i.e.\ for valence
+electrons), a systematic expansion in $1/c^2$ --- the Foldy--Wouthuysen /
+Pauli reduction --- yields the \textbf{Pauli Hamiltonian} acting on
+two-component spinors:
+\begin{equation}
+\Ha_{\mathrm{Pauli}} =
+\underbrace{\frac{\hat p^2}{2} + V}_{\text{non-relativistic}}
+\;\underbrace{-\; \frac{\hat p^4}{8 c^2}}_{\text{mass--velocity}}
+\;+\; \underbrace{\frac{1}{8 c^2} \nabla^2 V}_{\text{Darwin}}
+\;+\; \underbrace{\frac{1}{4 c^2}\,
+\bm\sigma \cdot \big(\nabla V \times \hat{\mathbf p}\big)}_{\text{spin--orbit}} .
+\label{eq:pauli}
+\end{equation}
+Interpretation of the three corrections:
+\begin{itemize}[leftmargin=2em]
+\item \textbf{Mass--velocity}: the relativistic increase of inertia,
+$\sqrt{p^2c^2 + c^4} \approx c^2 + \tfrac{p^2}{2} - \tfrac{p^4}{8c^2}$.
+Lowers high-kinetic-energy ($s$) states.
+\item \textbf{Darwin}: a contact-like term from the electron's
+\emph{Zitterbewegung} smearing it over a Compton wavelength; only $s$ states
+(finite at the nucleus) feel the $\nabla^2 V \propto \delta(\rr)$ of a
+Coulomb potential strongly.
+\item \textbf{Spin--orbit}: in the electron's rest frame, the electric field
+$-\nabla V$ of the nucleus appears partly as a magnetic field
+$\mathbf B' \approx -(\mathbf v \times \mathbf E)/c^2$ that acts on the spin
+moment (a factor $\tfrac12$ from Thomas precession is included in
+\eqref{eq:pauli}).
+\end{itemize}
+For a central potential, $\nabla V = (\dd V/\dd r)\, \hat{\mathbf r}$, and
+the SOC term becomes the familiar
+\begin{equation}
+\Ha_{\mathrm{SO}} = \frac{1}{2c^2} \frac{1}{r} \frac{\dd V}{\dd r}\;
+\mathbf{L}\cdot\mathbf{S},
+\qquad \mathbf S = \tfrac12 \bm\sigma .
+\label{eq:hso_central}
+\end{equation}
+Because $\dd V/\dd r \sim Z/r^2$ near the nucleus, $\Ha_{\mathrm{SO}}$ is
+utterly dominated by the core region --- SOC scales roughly like $Z^2$
+(for valence $d$ states of the heavy elements, between $Z^2$ and $Z^4$
+depending on screening), which is why it is negligible in aluminum, small in
+copper, and huge in gold.
+
+The two spin-diagonal corrections (mass--velocity + Darwin) are called
+\emph{scalar relativistic}; they shift bands without splitting spins. The SOC
+term couples the two spin components: eigenstates are no longer spin-up or
+spin-down but two-component \textbf{spinors}, and the good atomic quantum
+number becomes the total angular momentum $j = \ell \pm \tfrac12$, since
+\begin{equation}
+\mathbf L \cdot \mathbf S
+= \tfrac12\big(J^2 - L^2 - S^2\big)
+= \tfrac12\Big[j(j{+}1) - \ell(\ell{+}1) - \tfrac34\Big]
+= \begin{cases}
++\,\ell/2, & j = \ell + \tfrac12,\\[2pt]
+-\,(\ell+1)/2, & j = \ell - \tfrac12 .
+\end{cases}
+\label{eq:ls_eigen}
+\end{equation}
+For a $d$ shell ($\ell=2$): the $j = 5/2$ level rises by $+\xi$ and
+$j = 3/2$ falls by $-\tfrac32 \xi$, where $\xi = \tfrac{1}{2c^2}\braket{
+r^{-1}\, \dd V/\dd r}$; the splitting is $\tfrac52 \xi \approx 1.5$\,eV in
+the gold \emph{atom}, i.e.\ $\xi \approx 0.6$\,eV.
+
+\paragraph{What the crystal does to this picture.} In the solid the atom
+sits in a cubic environment, and $j$ is no longer a good quantum number. At
+$\Gamma$ the cubic crystal field alone (no SOC) splits the five $d$
+orbitals into a triplet $t_{2g}$ ($xy, yz, xz$; band label
+$\Gamma_{25'}$) and, in gold about $1.5$\,eV higher, a doublet $e_g$
+($z^2, x^2{-}y^2$; label $\Gamma_{12}$). Switching on SOC then splits the
+$t_{2g}$ triplet (six states with spin) into a quartet and a doublet, while
+the $e_g$ doublet (four states with spin) stays together. So at $\Gamma$
+you should find \textbf{three} $d$ levels with degeneracies
+$\mathbf{4, 2, 4}$ (labels $\Gamma_8^+, \Gamma_7^+, \Gamma_8^+$), not the
+$4+6$ pattern of the free atom. A ten-line model reproduces the pattern:
+diagonalize the $10\times10$ matrix $\Delta\,\hat P_{e_g} + \xi\,\mathbf
+L\cdot\mathbf S$ with the matrices of Section~\ref{sec:lsmatrix}, where
+$\hat P_{e_g}$ projects on the two $e_g$ orbitals (in the real-harmonic
+order of Table~\ref{tab:realylm}, $\mu = 0$ and $\mu = 2$, for both
+spins). For $\Delta = 2\xi$ the eigenvalues are exactly $-\xi$ (4-fold),
+$+\xi$ (2-fold), $+2.5\,\xi$ (4-fold). For gold the reference calculation
+of Chapter~\ref{ch:verify} (LDA) gives levels at $-5.45$, $-4.24$ and
+$-3.02$\,eV relative to $E_F$, which the model reproduces to within $0.02$\,eV
+with $\xi = 0.62$\,eV and $\Delta = 1.54$\,eV --- the latter being
+precisely the $t_{2g}$--$e_g$ splitting found with SOC switched off.
+Angle-resolved photoemission places the three levels at $-5.9$ to
+$-6.0$, $-4.5$ to $-4.7$ and $-3.6$ to $-3.7$\,eV (three independent
+measurements, collected in Table~\ref{tab:dbandexp}): the same pattern,
+$0.5$--$0.7$\,eV deeper (a known shortcoming of LDA and GGA for the $d$
+bands of noble metals).
+
+\section{Relativity through the pseudopotential}
+
+Here is the beautiful practical point: since all three relativistic terms
+live near the nucleus --- exactly the region the pseudopotential replaces ---
+\textbf{relativity can be injected into the calculation entirely through the
+pseudopotential}, while the valence electrons in the interstitial region are
+treated with ordinary non-relativistic kinetic energy $-\tfrac12\nabla^2$.
+The construction: solve the \emph{radial Dirac equation} for the isolated
+atom (all electrons, fully relativistic), obtaining valence levels
+$\varepsilon_{\ell j}$ and wavefunctions labeled by $j = \ell \pm \tfrac12$;
+then build norm-conserving pseudopotentials $V_{\ell j}(r)$ per $(\ell, j)$
+channel. Regroup the two $j$ channels of each $\ell$ into a
+\textbf{scalar-relativistic average} and a \textbf{spin--orbit difference}:
+\begin{equation}
+V^{\mathrm{SR}}_{\ell}
+= \frac{(\ell{+}1)\, V_{\ell, \ell+\frac12} + \ell\, V_{\ell, \ell-\frac12}}
+{2\ell + 1},
+\qquad
+\Delta V^{\mathrm{SO}}_{\ell}
+= \frac{2\,\big(V_{\ell,\ell+\frac12} - V_{\ell,\ell-\frac12}\big)}{2\ell+1},
+\end{equation}
+in terms of which the ionic potential acts on spinors as
+\begin{equation}
+\hat V_{\mathrm{ion}} = V_{\mathrm{loc}} + \sum_{\ell}
+\Big[V^{\mathrm{SR}}_{\ell}
++ \Delta V^{\mathrm{SO}}_{\ell}\; \mathbf L \cdot \mathbf S\Big]
+\hat P_{\ell},
+\label{eq:vsplit}
+\end{equation}
+$\hat P_\ell$ projecting on angular momentum $\ell$ around the atom. (Check
+the algebra: acting on a $j = \ell\pm\tfrac12$ state and using
+\eqref{eq:ls_eigen} recovers $V_{\ell j}$ exactly.) The HGH relativistic
+parametrization of Chapter~\ref{ch:pseudo} delivers precisely
+\eqref{eq:vsplit} in separable form: the matrices $h^{\ell}_{ij}$ encode
+$V^{\mathrm{SR}}_\ell$ and the matrices $k^{\ell}_{ij}$ encode
+$\Delta V^{\mathrm{SO}}_\ell$, both with the same analytic projectors
+\eqref{eq:hghproj}. Switching SOC off ($k \to 0$) gives you the
+scalar-relativistic reference calculation --- a one-line experiment that
+isolates the SOC physics in your band plots.
+
+\section{Matrix elements of $\mathbf{L}\cdot\mathbf{S}$}
+\label{sec:lsmatrix}
+
+You need $(\mathbf L\cdot\mathbf S)$ in the basis
+$\ket{\ell m}\otimes\ket{s}$, $s\in\{\uparrow,\downarrow\}$, used by the
+projectors. Write
+\begin{equation}
+\mathbf L \cdot \mathbf S
+= L_z S_z + \tfrac12\big(L_+ S_- + L_- S_+\big),
+\qquad
+L_\pm \ket{\ell m} = \sqrt{\ell(\ell{+}1) - m(m{\pm}1)}\;\ket{\ell, m{\pm}1}.
+\end{equation}
+In block form over spin (each block an operator on $m = -\ell..\ell$):
+\begin{equation}
+\mathbf L\cdot\mathbf S =
+\frac12
+\begin{pmatrix}
+L_z & L_- \\
+L_+ & -L_z
+\end{pmatrix},
+\label{eq:lsblocks}
+\end{equation}
+a Hermitian $2(2\ell{+}1)\times 2(2\ell{+}1)$ matrix you can hard-code for
+$\ell = 1, 2$ (SOC vanishes identically for $\ell = 0$). \emph{Caution}: the
+ladder-operator formulas hold in the basis of \emph{complex} spherical
+harmonics $Y_{\ell m}$. If your projectors use \emph{real} spherical
+harmonics (Table~\ref{tab:realylm}, recommended for everything else),
+transform each orbital matrix first: $L^{\mathrm{real}}_{z,\pm} =
+U^\dagger L_{z,\pm} U$, then assemble Eq.~\eqref{eq:lsblocks} from the
+transformed blocks. $U$ is the $(2\ell{+}1)\times(2\ell{+}1)$ unitary
+whose column $\mu$ holds the expansion of the real harmonic $Y_{\ell\mu}$
+in complex ones (Condon--Shortley phases):
+\begin{equation}
+Y_{\ell\mu} =
+\begin{cases}
+\dfrac{1}{\sqrt2}\Big[Y_{\ell}^{-\mu} + (-1)^{\mu}\, Y_{\ell}^{\mu}\Big],
+ & \mu > 0,\\[8pt]
+Y_{\ell}^{0}, & \mu = 0,\\[4pt]
+\dfrac{\ii}{\sqrt2}\Big[Y_{\ell}^{-|\mu|} - (-1)^{|\mu|}\, Y_{\ell}^{|\mu|}\Big],
+ & \mu < 0 .
+\end{cases}
+\label{eq:realtocomplex}
+\end{equation}
+In the real basis $L_x, L_y, L_z$ are purely imaginary antisymmetric
+matrices --- SOC is where your Hamiltonian becomes irreducibly
+complex-valued. Three checks that catch every sign and ordering error:
+(i) $U^\dagger U = \mathbf 1$; (ii) for $\ell = 1$ in the order
+$(y, z, x)$ the result must be $(L_k)_{ab} = -\ii\,\epsilon_{kab}$, e.g.\
+$(L_z)_{xy} = -\ii$; (iii) the eigenvalues of the assembled
+$\mathbf L\cdot\mathbf S$ must be those of Eq.~\eqref{eq:ls_eigen}:
+$\{+\tfrac12 (\times4), -1 (\times 2)\}$ for $\ell=1$ and
+$\{+1 (\times 6), -\tfrac32 (\times 4)\}$ for $\ell = 2$.
+
+The complete nonlocal operator in your code is then
+Eq.~\eqref{eq:hghso}: block matrices
+$D^{\ell}_{(im s),(j m' s')} = h^{\ell}_{ij}\,\delta_{mm'}\delta_{ss'}
++ k^{\ell}_{ij}\, (\mathbf L\cdot\mathbf S)_{ms,\,m's'}$,
+contracted with projections $\braket{\beta_{j\ell m}|\psi^{s'}}$.
+
+\section{Spinor Kohn--Sham equations}
+
+Assembling everything, the object your eigensolver diagonalizes at each
+$\kk$-point is the $2\times2$-block operator acting on spinors
+$\Psi_{n\kk} = \big(\psi^{\uparrow}_{n\kk}, \psi^{\downarrow}_{n\kk}\big)^{\mathsf T}$:
+\begin{equation}
+\boxed{\;
+\sum_{\beta}\Big[
+\Big(-\tfrac12 \nabla^2 + V_{\mathrm{loc}} + \vH + \vxc\Big)
+\delta_{\alpha\beta}
++ \mathbf B_{\mathrm{xc}}\cdot \bm\sigma_{\alpha\beta}
++ \big(\hat V_{\mathrm{NL}}\big)_{\alpha\beta}
+\Big]\, \psi^{\beta}_{n\kk}
+= \varepsilon_{n\kk}\, \psi^{\alpha}_{n\kk},
+\;}
+\label{eq:spinorks}
+\end{equation}
+with density matrix and fields rebuilt from the spinors:
+\begin{equation}
+n_{\alpha\beta}(\rr) = \sum_{n\kk} w_{\kk} f_{n\kk}\,
+\psi^{\alpha}_{n\kk}(\rr)\, \psi^{\beta *}_{n\kk}(\rr),
+\qquad
+n = n_{\uparrow\uparrow} + n_{\downarrow\downarrow},
+\quad
+\mathbf m = \mathrm{tr}[\bm\sigma\, \hat n].
+\end{equation}
+Only $\hat V_{\mathrm{NL}}$ (through $k^{\ell}_{ij}\,\mathbf L\cdot\mathbf S$)
+and $\mathbf B_{\mathrm{xc}}$ couple the spin components. Note that each
+band now holds \emph{one} electron ($f_{n\kk} \le 1$): spin degeneracy is no
+longer factored out. Gold with $q{=}11$ needs $\ge 11$ occupied spinor bands
+per $\kk$-point; solve for $\sim 20$--$24$.
+
+\section{Symmetry: time reversal, inversion, Kramers}
+\label{sec:symmetry}
+
+Two symmetries of nonmagnetic gold organize everything about its spinor
+bands. Both turn out to be simple, exact operations on your coefficient
+arrays --- which makes them unit tests now, and working tools in
+Chapter~\ref{ch:topology}.
+
+\paragraph{Time reversal.} Reversing the direction of time reverses
+momenta and spins. For a spin-$\tfrac12$ particle the operator is
+$\Theta = \ii \sigma_y K$, with $K$ complex conjugation; on a spinor,
+\begin{equation}
+\Theta \begin{pmatrix}\psi^{\uparrow}\\ \psi^{\downarrow}\end{pmatrix}
+= \begin{pmatrix}\ \ \psi^{\downarrow *}\\ -\psi^{\uparrow *}\end{pmatrix},
+\qquad \Theta^2 = -1 .
+\end{equation}
+Complex conjugation turns $\ee^{\ii(\kk+\GG)\cdot\rr}$ into
+$\ee^{\ii(-\kk-\GG)\cdot\rr}$, so $\Theta$ maps a Bloch state at $\kk$ to
+one at $-\kk$ whose coefficients are
+\begin{equation}
+(\Theta c)^{\uparrow}_{-\kk}(\GG) = \big[c^{\downarrow}_{\kk}(-\GG)\big]^*,
+\qquad
+(\Theta c)^{\downarrow}_{-\kk}(\GG) = -\big[c^{\uparrow}_{\kk}(-\GG)\big]^* .
+\label{eq:trcoeff}
+\end{equation}
+The Hamiltonian commutes with $\Theta$ whenever nothing in it singles out a
+direction of spin or of circulation: kinetic energy and real local
+potentials obviously qualify, and so does $\mathbf L\cdot\mathbf S$ (both
+factors change sign). An exchange field $\mathbf B_{\mathrm{xc}}\cdot\bm\sigma$
+does not. For non-magnetic gold, $[\Ha,\Theta]=0$, with two consequences.
+\begin{itemize}[leftmargin=2em]
+\item \textbf{Kramers theorem.} Every state at $\kk$ has a partner of the
+same energy at $-\kk$, namely $\Theta\psi$, with reversed spin:
+$\varepsilon_{n,-\kk} = \varepsilon_{n\kk}$. The partner is a genuinely
+different state: if $\Theta\psi = \lambda\psi$ then
+$\Theta^2\psi = |\lambda|^2\psi \ne -\psi$, a contradiction.
+\item The density contributed by $\Theta\psi$ equals that of $\psi$, so
+$-\kk$ adds nothing new to $n(\rr)$ and the magnetization contributions
+cancel, $\mathbf m = 0$: you may sample one of each $\pm\kk$ pair with
+doubled weight.
+\end{itemize}
+At a few special points $-\kk$ and $\kk$ are the \emph{same} point of the
+zone, because they differ by a reciprocal lattice vector: $2\kk = \GG_0$.
+These are the \textbf{time-reversal-invariant momenta} (TRIM). With
+fractional coordinates $\kk = \tfrac12(n_1,n_2,n_3)$, $n_i\in\{0,1\}$,
+there are always eight; in FCC they are $\Gamma$, the three $X$ points and
+the four $L$ points:
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Point & How many & Fractional coordinates $(n_1,n_2,n_3)/2$\\
+\midrule
+$\Gamma$ & 1 & $(0,0,0)$\\
+$X$ & 3 & $(0,\tfrac12,\tfrac12)$, $(\tfrac12,0,\tfrac12)$,
+$(\tfrac12,\tfrac12,0)$\\
+$L$ & 4 & $(\tfrac12,0,0)$, $(0,\tfrac12,0)$, $(0,0,\tfrac12)$,
+$(\tfrac12,\tfrac12,\tfrac12)$\\
+\bottomrule
+\end{tabular}
+\end{center}
+At a TRIM both Kramers partners live at the same $\kk$, so every level
+there is at least doubly degenerate, whatever the crystal structure.
+
+\paragraph{Inversion.} The gold crystal is unchanged by
+$\rr\to-\rr$ about any atom. The operator $(\hat P\psi)(\rr) = \psi(-\rr)$
+acts identically on both spinor components (spin is an angular momentum,
+and angular momenta do not change sign under inversion), commutes with
+$\Ha$ and with $\Theta$, and --- like $\Theta$ --- sends $\kk\to-\kk$:
+\begin{equation}
+(\hat P c)^{s}_{-\kk}(\GG) = c^{s}_{\kk}(-\GG) .
+\label{eq:pcoeff}
+\end{equation}
+Hence $\varepsilon_{n,-\kk}=\varepsilon_{n\kk}$ a second time, for an
+independent reason, and the combination $\hat P\Theta$ maps every $\kk$ to
+\emph{itself}. It is anti-unitary and squares to $-1$, so the Kramers
+argument applies at each $\kk$ separately: \textbf{in gold every band is
+exactly two-fold degenerate at every} $\kk$. SOC in gold splits orbital
+degeneracies (the $d$ manifold) but cannot spin-split individual bands.
+Your computed eigenvalues must come in exact pairs --- a stringent, free
+correctness test. We call such a pair of bands a \emph{Kramers pair}: pair
+1 is spinor bands 1 and 2, pair 2 is bands 3 and 4, and so on. (In
+crystals without inversion, e.g.\ GaAs or any surface, SOC does spin-split
+the bands away from the TRIM --- Rashba/Dresselhaus physics the same code
+captures.)
+
+\paragraph{Both operations at a TRIM: permutations of your array.} At a
+TRIM the state at $-\kk$ is a state at $\kk$ with relabeled plane waves:
+$-\kk+\GG' = \kk + (\GG'-\GG_0)$. Applying this relabeling to
+Eqs.~\eqref{eq:trcoeff} and \eqref{eq:pcoeff} gives operators that act
+\emph{within} the coefficient array of one $\kk$-point:
+\begin{equation}
+\boxed{\;
+\begin{aligned}
+(\hat P c)^{s}(\GG) &= c^{s}(-\GG-\GG_0),\\
+(\Theta c)^{\uparrow}(\GG) &= \big[c^{\downarrow}(-\GG-\GG_0)\big]^*,\qquad
+(\Theta c)^{\downarrow}(\GG) = -\big[c^{\uparrow}(-\GG-\GG_0)\big]^*,
+\end{aligned}
+\qquad \GG_0 = 2\kk .\;}
+\label{eq:parityperm}
+\end{equation}
+The cutoff sphere is mapped onto itself because
+$|\kk + (-\GG-\GG_0)| = |\kk+\GG|$. In integer (Miller-index) form with
+$\kk = \tfrac12(n_1,n_2,n_3)$, the plane wave $(m_1,m_2,m_3)$ is sent to
+$(-m_1-n_1,\,-m_2-n_2,\,-m_3-n_3)$: both operators are one fixed
+permutation of the $\GG$ index (plus, for $\Theta$, a spin swap and a
+conjugation). Three unit tests follow, each for a random spinor $c$ at
+each of the eight TRIM:
+\begin{equation}
+\hat H(\hat P c) = \hat P(\hat H c),
+\qquad
+\hat H(\Theta c) = \Theta(\hat H c),
+\qquad
+\Theta(\Theta c) = -c ,
+\end{equation}
+to rounding error. The first fails if the projector phases
+$(-\ii)^\ell Y_{\ell m}$ or the structure factors are wrong (and it
+requires the atom at the origin, as we have it). The second fails if any
+term breaks time reversal --- a stray $\mathbf B_{\mathrm{xc}}$, or an
+$\mathbf L\cdot\mathbf S$ block whose orbital matrices are not purely
+imaginary in the real-harmonic basis. (Neither test can detect a
+\emph{consistent} relabeling of the harmonics or a sign change of the
+spin-flip blocks, which are unitary transformations of a correct
+Hamiltonian; the eigenvalue checks of Section~\ref{sec:lsmatrix} and the
+degeneracy pattern at $\Gamma$ cover those.)
+
+\paragraph{Parity as a band label.} Because $\hat P$ maps a TRIM to itself
+and commutes with $\Ha$, the eigenstates there can be chosen as
+eigenstates of $\hat P$, and since $\hat P^2 = 1$ the eigenvalue is
+$\xi = +1$ (\emph{even}) or $\xi=-1$ (\emph{odd}). Since
+$[\hat P,\Theta]=0$, both members of a Kramers pair have the same $\xi$:
+\textbf{each Kramers pair at each TRIM carries one sign.} This is the
+solid-state version of the parity you know from atoms, and the connection
+is direct: a Bloch sum $\sum_{\RR}\ee^{\ii\kk\cdot\RR}\phi_\ell(\rr-\RR)$
+of atomic orbitals of angular momentum $\ell$ has, at any TRIM, parity
+$(-1)^\ell$ --- $s$ and $d$ bands are even, $p$ bands are odd. It is also
+exactly the even/odd distinction between the $\cos$ and $\sin$ states of
+the two-plane-wave model, Eq.~\eqref{eq:nfeparity}. The superscripts in
+the group-theory labels used above are these parities: $\Gamma_8^{+}$ and
+$\Gamma_7^{+}$ are even, as $d$ states must be. Computing $\xi$ takes
+three lines: for a non-degenerate pair,
+$\xi = \braket{\psi|\hat P|\psi} = \sum_{\GG s} c^{s*}(\GG)\,
+c^{s}(-\GG-\GG_0)$; for a block of bands, the eigenvalues of the matrix
+$\braket{\psi_m|\hat P|\psi_n}$. Chapter~\ref{ch:topology} multiplies
+these signs together.
+
+\begin{keybox}{What to expect in the gold band structure}
+Without SOC (set $k^\ell = 0$): five scalar-relativistic $d$ bands
+$\sim 1.7$--$7.5$\,eV below $E_F$, crossed by the broad $6s$ band. With SOC on:
+at $\Gamma$ the $d$ manifold forms three levels with degeneracies $4, 2, 4$
+(the $t_{2g}$-derived quartet and doublet, split by roughly
+$1.2$--$1.5$\,eV, and the $e_g$-derived quartet above); degeneracies along $\Gamma$--$X$ and
+$\Gamma$--$L$ are lifted; and all bands remain exactly doubly degenerate.
+Compare against any published relativistic Au band structure --- the
+agreement, from a code you wrote yourself, is the payoff of this whole
+project. Figure~\ref{fig:bands} shows what it should look like.
+\end{keybox}
+
+\begin{figure}[H]
+\centering
+\pgfplotsset{bandplot/.style={width=0.52\textwidth, height=0.62\textwidth,
+  xmin=0, xmax=3.37024, ymin=-11, ymax=8,
+  xtick={0,0.81529,1.22294,1.79943,2.5055,3.37024},
+  xticklabels={$\Gamma$,$X$,$W$,$L$,$\Gamma$,$K$},
+  xmajorgrids=true, grid style={black!35},
+  tick label style={font=\small}, label style={font=\small},
+  title style={font=\small}, no markers}}
+\begin{tikzpicture}
+\begin{axis}[bandplot, ylabel={$\varepsilon - E_F$ (eV)}, title={SOC off (scalar relativistic)}]
+\draw[black!50, dashed] (axis cs:0,0) -- (axis cs:3.37024,0);
+\foreach \i in {1,...,9}{\addplot[blue!70!black, thick] table[x index=0, y index=\i] {figdata/bands_sr.dat};}
+\end{axis}
+\end{tikzpicture}\hfill
+\begin{tikzpicture}
+\begin{axis}[bandplot, yticklabels={}, title={SOC on (each line is a Kramers pair)}]
+\draw[black!50, dashed] (axis cs:0,0) -- (axis cs:3.37024,0);
+\foreach \i in {1,...,8}{\addplot[red!70!black, thick] table[x index=0, y index=\i] {figdata/bands_soc.dat};}
+\end{axis}
+\end{tikzpicture}
+\caption{Band structure of FCC gold computed with the reference
+implementation of Chapter~\ref{ch:verify} (HGH $q{=}11$ pseudopotential,
+LDA, experimental lattice constant, $E_{\mathrm{cut}}=40$\,Ha). Left:
+$k^\ell = 0$. Right: full spin--orbit coupling. The flat $d$ bands lie
+between $-7.6$ and $-1$\,eV, crossed by the steep $sp$ band, which is the
+only band cutting the Fermi level. SOC lifts degeneracies throughout the
+$d$ complex --- at $\Gamma$ the threefold level at $-4.8$\,eV splits into
+$-5.45$ (quartet) and $-4.24$\,eV (doublet) --- and separates the sixth
+and seventh pairs where they nearly touch between $W$ and $L$. Your code
+should reproduce this figure.}
+\label{fig:bands}
+\end{figure}
+
+\begin{gpubox}{GPU/JAX notes}
+The spinor dimension is a fixed axis of length 2 --- fold it into the band
+axis for GEMMs (treat a spinor wavefunction as $2N_G$ complex coefficients)
+and keep it separate for the density construction. Everything stays
+\texttt{complex64/128}; SOC makes the Hamiltonian genuinely complex, so use
+complex-Hermitian (not real-symmetric) linear algebra throughout
+(\texttt{eigh} accepts complex Hermitian matrices
+natively; remember that every transpose in a formula becomes a conjugate
+transpose). The $\mathbf L\cdot\mathbf S$ blocks are tiny constant matrices:
+precompute $D^{\ell}$ once and fuse into the nonlocal GEMM. Kramers pairing
+of eigenvalues is a cheap on-device assertion (sorted eigenvalues should
+match in pairs to the eigensolver tolerance). The parity and time-reversal
+operations of Eq.~\eqref{eq:parityperm} are a single precomputed gather
+index per TRIM.
+\end{gpubox}

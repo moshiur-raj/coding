@@ -1,0 +1,468 @@
+\chapter{Verification: From Free Electrons to Relativistic Gold}
+\label{ch:verify}
+
+Build and test in stages; each stage has an exact or well-established
+target. Do not proceed to a stage until the previous one passes.
+
+\paragraph{About the reference numbers in this chapter.} Every formula,
+table and algorithm in this document has been exercised by an independent
+reference implementation that follows the text literally (plain NumPy,
+double precision, no symmetry beyond time reversal). Numbers quoted
+``from the reference calculation'' come from it. They are not
+experimental or literature values; they are what \emph{these equations}
+give with \emph{these parameters}, and a correct implementation must
+reproduce them to the stated digits. Where a number depends on
+discretization choices (FFT grid size, mesh), those are stated.
+
+\section{Stage 0: components in isolation}
+\begin{enumerate}[leftmargin=2em]
+\item \textbf{Basis}: plane-wave counts per $\kk$ close to
+$\Omega(2E_{\mathrm{cut}})^{3/2}/6\pi^2$ (gold cell:
+$a = 7.70668$\,Bohr, $\Omega = 114.4306$\,Bohr$^3$, so about $1380$ at
+$E_{\mathrm{cut}} = 40$\,Ha).
+\item \textbf{FFT round trip}: sphere $\to$ box $\to$ IFFT $\to$ FFT $\to$
+gather returns the input to machine precision; Parseval's theorem holds.
+\item \textbf{XC values}: the anchors of Chapter~\ref{ch:xc}
+($\varepsilon_x, \varepsilon_c$ at $r_s = 2, 3$ to $10^{-5}$; the PBE
+point to $10^{-6}$); AD-generated $\vxc$ matches the analytic derivative.
+\item \textbf{Ewald}: independence of $\eta$ to $10^{-10}$. Quantitative
+target for the gold cell ($Z_{\mathrm{ion}} = 11$,
+$a = 4.0782$\,\AA, one atom): $E_{\mathrm{Ewald}} = -35.992686$\,Ha,
+equivalent to the FCC Madelung constant,
+$E_{\mathrm{Ewald}} = -0.8958736\, Z_{\mathrm{ion}}^2 / r_{\mathrm{ws}}$
+with $r_{\mathrm{ws}} = (3\Omega/4\pi)^{1/3}$.
+\item \textbf{Hermiticity}: $\braket{\phi|\hat H \psi} =
+\overline{\braket{\psi | \hat H \phi}}$ for random spinors, with SOC on ---
+catches conjugation bugs in projectors and $\mathbf L\cdot\mathbf S$.
+\item \textbf{$\mathbf L\cdot\mathbf S$ blocks}: the three checks of
+Section~\ref{sec:lsmatrix}, in the real-harmonic basis you actually use;
+then the $10\times10$ crystal-field model of Chapter~\ref{ch:soc} must give
+$\{-1, +1, +2.5\}\,\xi$ with degeneracies $4, 2, 4$ for $\Delta = 2\xi$.
+\item \textbf{Symmetry}: $[\hat P,\hat H]=0$, $[\Theta,\hat H]=0$,
+$\Theta^2=-1$ on random spinors at the eight TRIM
+(Section~\ref{sec:symmetry}).
+\item \textbf{Pseudopotential pieces}: the closed forms
+\eqref{eq:hghlocG}--\eqref{eq:hghlocpoly} and \eqref{eq:hghprojG} against
+brute-force radial quadrature of Eqs.~\eqref{eq:hghloc} and
+\eqref{eq:besseltransform}; projector normalization
+$\int p_{i\ell}^2 r^2 \dd r = 1$; and $\alpha$ of Eq.~\eqref{eq:alphaZ}:
+$\alpha = 61.595082$ for the LDA parameters of Table~\ref{tab:auhgh}.
+\item \textbf{Smearing}: $\sum_{n\kk} w_\kk f_{n\kk} = N_e$ after the
+Fermi search; $\dd s/\dd x = x\,\dd f/\dd x$ numerically for each scheme
+(this is the identity that makes $F$ variational).
+\item \textbf{Eigensolver}: for a small cutoff, build the dense matrix by
+applying \textsc{ApplyH} to unit vectors and compare \texttt{eigh} with
+Algorithm~\ref{alg:lobpcg} --- after 30 iterations \emph{and} after 300.
+\end{enumerate}
+
+\section{Stage 1: exactly solvable systems}
+\begin{enumerate}[leftmargin=2em]
+\item \textbf{Empty lattice} ($V = 0$): eigenvalues must equal
+$\tfrac12|\kk+\GG|^2$ exactly; band structure is the folded free-electron
+parabola. Tests kinetic term, eigensolver, $\kk$ bookkeeping.
+\item \textbf{Single cosine potential}: $V(\rr) = 2V_0\cos(\GG_1\cdot\rr)$
+with $\GG_1 = \mathbf b_1$. At $\kk = \tfrac12\mathbf b_1$ (an $L$ point)
+the two lowest levels must be $\tfrac18|\mathbf b_1|^2 \pm V_0$ up to
+corrections of order $V_0^2/|\mathbf b_1|^2$, i.e.\ a gap
+$\approx 2|V_0|$, in agreement with Section~\ref{sec:nfe} and with a dense
+diagonalization; and their parities (Eq.~\eqref{eq:parityperm}) must be
+even-below-odd for $V_0<0$ and the reverse for $V_0>0$.
+\item \textbf{A screened ion in a big box.} This is the decisive test of
+the pseudopotential code, SOC included, against an oracle that shares no
+code with it. Put one gold ion in a large FCC cell ($a = 24$\,Bohr),
+switch XC off, and use as the only other potential the Hartree potential
+of a \emph{fixed} Gaussian charge of width $w = 2$\,Bohr,
+$n(\GG) = (Z_{\mathrm{ion}}/\Omega)\,\ee^{-G^2w^2/2}$ --- the SCF starting
+density with a different width. The total potential is then short-ranged
+and spherically symmetric about the atom,
+\[
+V(r) = V_{\mathrm{loc}}(r) + \frac{Z_{\mathrm{ion}}}{r}\,
+\mathrm{erf}\!\Big(\frac{r}{\sqrt2\,w}\Big) \;+\; \hat V_{\mathrm{NL}},
+\]
+so its bound states are those of a one-dimensional radial problem for each
+$(\ell, j)$. Solve that problem independently: on a uniform radial grid
+$r_i = ih$, the function $u(r) = r\,R(r)$ obeys a matrix eigenproblem with
+\begin{multline*}
+H_{ii'} = -\frac{\delta_{i,i'+1} - 2\delta_{ii'} + \delta_{i,i'-1}}{2h^2}
++ \Big[\frac{\ell(\ell+1)}{2r_i^2} + V(r_i)\Big]\delta_{ii'}\\
++ h\sum_{a,b=1}^{2} r_i\,p_{a\ell}(r_i)\;\big(h^\ell_{ab} + \lambda_{\ell j}\,k^\ell_{ab}\big)\;
+r_{i'}\,p_{b\ell}(r_{i'}),
+\end{multline*}
+where $\lambda_{\ell j} = \ell/2$ for $j = \ell+\tfrac12$ and
+$-(\ell+1)/2$ for $j = \ell-\tfrac12$ (Eq.~\eqref{eq:ls_eigen}) --- thirty
+lines of code, one dense \texttt{eigh} per channel ($h = 0.01$,
+$r_{\max} = 30$). Reference values (extrapolated to $h\to0$):
+\begin{center}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+ & $s_{1/2}$ & $p_{1/2}$ & $p_{3/2}$ & $d_{3/2}$ & $d_{5/2}$\\
+\midrule
+$\varepsilon$ (Ha) & $-1.01843$ & $-0.60281$ & $-0.59335$ & $-1.99901$ & $-1.89459$\\
+degeneracy in the box & 2 & 2 & 4 & 4 & 6\\
+\bottomrule
+\end{tabular}
+\end{center}
+The plane-wave eigenvalues at $\Gamma$ must equal these \emph{plus}
+$2\pi Z_{\mathrm{ion}}w^2/\Omega$, with the degeneracies shown. (The shift
+is the price of setting $\vH(\GG{=}0)=0$: the plane-wave potential differs
+from the true one by exactly this constant --- a useful exercise in
+Section~\ref{sec:g0}.) The reference plane-wave calculation ($E_{\mathrm{cut}} = 40$\,Ha,
+$41\,655$ plane waves, FFT grid $98^3$, shift $0.079994$\,Ha) gives
+$-1.01843$, $-0.60281$, $-0.59335$, $-1.99900$, $-1.89458$\,Ha: agreement
+to $10^{-5}$\,Ha in every channel. The $d_{5/2}$--$d_{3/2}$
+splitting, $0.1044$\,Ha with $j = \tfrac52$ \emph{above} $j=\tfrac32$,
+fixes the overall sign of the $k^\ell_{ij}$ term.
+\item \textbf{The self-consistent atom (oracle only).} Adding a Hartree and
+LDA potential to the radial solver and iterating gives the neutral
+pseudo-atom. For the configuration $5d_{3/2}^{4}\,5d_{5/2}^{6}\,6s^1$
+(spherical, not spin-polarized, LDA parameters):
+$\varepsilon_{6s} = -0.2241$, $\varepsilon_{5d_{3/2}} = -0.2971$,
+$\varepsilon_{5d_{5/2}} = -0.2405$\,Ha, hence a spin--orbit splitting of
+the $5d$ level of $1.54$\,eV --- the number quoted in
+Chapter~\ref{ch:soc}, here derived from the twenty numbers of
+Table~\ref{tab:auhgh}. (The unoccupied $6p$ levels come out at $-0.0486$
+and $-0.0278$\,Ha, split by $0.57$\,eV with $j=\tfrac12$ lower.)
+\end{enumerate}
+
+\section{Stage 2: self-consistency on easy targets}
+\begin{enumerate}[leftmargin=2em]
+\item \textbf{Jellium in a cell}: no ions, uniform positive background
+(i.e.\ just $\vH(\GG{=}0) = 0$ and no ionic potential), $N_e$ electrons.
+The SCF must return the uniform density $N_e/\Omega$, eigenvalues
+$\tfrac12|\kk+\GG|^2 + \vxc(n)$, and the analytic HEG energy per electron
+$\tfrac{3}{10}k_F^2 + \varepsilon_{\mathrm{xc}}(n)$ in the limit of a dense
+mesh and small smearing.
+\item \textbf{Silicon (bonus)}: if you want a soft interim target, HGH
+silicon converges with $E_{\mathrm{cut}} \approx 12$\,Ha; indirect
+gap $\approx 0.5$--$0.6$\,eV (the famous LDA/PBE underestimate), lattice
+constant PBE $\approx 5.47$\,\AA. (Two atoms per cell: your structure
+factors and projector phases get their first real test.)
+\end{enumerate}
+
+\section{Stage 3: gold, self-consistent --- regression numbers}
+\label{sec:stage3}
+
+Start small, and start with spin--orbit coupling switched off
+($k^\ell = 0$): the three cases of Table~\ref{tab:smallcases} run in a
+minute on a laptop CPU and each isolates one ingredient. Work through them
+in order --- scalar-relativistic LDA first, then SOC, then PBE.
+
+\begin{table}[H]
+\centering\small
+\begin{tabular}{@{}lccl@{}}
+\toprule
+Case & $F$ (Ha) & $\mu$ (Ha) & levels at $\Gamma$ in Ha (number of spinor states)\\
+\midrule
+LDA, SOC off & $-33.291161$ & $0.613238$ & $0.213490\,(2)$, $0.406739\,(6)$, $0.463560\,(4)$\\
+LDA, SOC on & $-33.311413$ & $0.609888$ & $0.213402\,(2)$, $0.381623\,(4)$, $0.425863\,(2)$, $0.470840\,(4)$\\
+PBE, SOC on & $-33.254853$ & $0.624314$ & $0.229208\,(2)$, $0.394565\,(4)$, $0.438491\,(2)$, $0.482719\,(4)$\\
+\bottomrule
+\end{tabular}
+\caption{Small regression cases. Common settings: $q = 11$ parameters of
+Table~\ref{tab:auhgh} matching the functional, $a = 4.0782$\,\AA{}
+$= 7.706681$\,Bohr, $E_{\mathrm{cut}} = 20$\,Ha, FFT grid $24^3$ ($531$
+plane waves at $\Gamma$), $\Gamma$-centered $4^3$ mesh ($36$ points after
+time-reversal reduction), Methfessel--Paxton order 1 with
+$\sigma = 0.01$\,Ha, 20 spinor bands, SCF as in the driver of
+Chapter~\ref{ch:algorithms}, converged to $\|R\| < 10^{-8}$ (10--12
+iterations). The levels at $\Gamma$ are the eigenvalues of the converged
+Hamiltonian; with SOC off the spinor code returns every level of a scalar
+code twice (the $t_{2g}$ triplet as six states, the $e_g$ doublet as
+four). The cutoff is far too low for converged physics --- these are
+regression numbers.}
+\label{tab:smallcases}
+\end{table}
+
+A correct implementation reproduces $F$, $\mu$ and the levels to the last
+digit shown: both the NumPy reference and an independent JAX program
+written from this text do. If you are off, the size of the discrepancy
+tells you where to look:
+\begin{itemize}[leftmargin=2em]
+\item \emph{$10^{-6}$--$10^{-5}$\,Ha in $F$}: rounded constants (PBE
+$\beta,\mu$; pseudopotential digits; PW92 $A$) or a different FFT grid.
+\item \emph{$10^{-3}$\,Ha or more in $F$ with correct eigenvalue
+differences}: a constant --- $\alpha$ of Eq.~\eqref{eq:alphaZ}, the Ewald
+energy, the entropy term, or double counting in Eq.~\eqref{eq:ftot}.
+\item \emph{Wrong degeneracies at $\Gamma$} (anything other than $2,6,4$
+without and $2,4,2,4$ with SOC): projectors, real harmonics or the
+$\mathbf L\cdot\mathbf S$ blocks; go back to Stage~0 and Stage~1.3.
+\item \emph{SOC-off case right, SOC-on wrong}: the $k^\ell_{ij}$ values or
+the assembly of $D$.
+\item \emph{LDA right, PBE wrong}: the gradient or divergence step of
+Eq.~\eqref{eq:vxcgga2}; test the PBE point of Chapter~\ref{ch:xc} first.
+\end{itemize}
+
+Two larger cases with spin--orbit coupling on, for the production
+settings:
+\begin{center}\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+Setting & Case A & Case B\\
+\midrule
+functional, parameters & LDA, $q=11$ & LDA, $q=11$\\
+$a$ & $7.706681$\,Bohr & $7.706681$\,Bohr\\
+$E_{\mathrm{cut}}$; FFT grid & $25$\,Ha; $27^3$ & $40$\,Ha; $35^3$\\
+mesh (time-reversal reduced) & $4^3$, Eq.~\eqref{eq:mpmesh}: 32 points & $8^3$, $\Gamma$-centered: 260 points\\
+smearing & MP1, $\sigma=0.01$\,Ha & MP1, $\sigma=0.01$\,Ha\\
+spinor bands & 20 & 20\\
+\midrule
+$F$ (Ha) & $-33.324309$ & $-33.325815$\\
+$\mu$ (Ha) & $0.58409$ & $0.58322$\\
+SCF iterations to $\|R\|<10^{-7}$ & 10 & 10\\
+\bottomrule
+\end{tabular}
+\end{center}
+(Throughout: $a_0 = 0.529177211$\,\AA; PW92 constants of
+Table~\ref{tab:pw92}. Case~A deliberately uses the shifted mesh of
+Eq.~\eqref{eq:mpmesh} to exercise that code path; it is a regression
+number, not a recommendation --- see Section~\ref{sec:bzintegration}.)
+Case~B is the calculation behind
+Table~\ref{tab:goldlevels}, Fig.~\ref{fig:bands} and
+Chapter~\ref{ch:topology}.
+
+\paragraph{Then the physics.} Lattice constant and bulk modulus from
+equation-of-state fits (end of Chapter~\ref{ch:hamiltonian}; seven
+lattice constants spanning $\pm4\%$, scalar-relativistic,
+$E_{\mathrm{cut}} = 45$\,Ha, $\Gamma$-centered $8^3$ mesh, MP1
+$\sigma = 0.01$\,Ha), and the position of the $d$ bands:
+\begin{center}\small\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+ & \multicolumn{2}{c}{LDA} & \multicolumn{2}{c}{PBE} & Experiment\\
+ & this potential & literature & this potential & literature & (room temp.)\\
+\midrule
+Lattice constant $a_0$ (\AA) & $4.093$ & $4.053$ & $4.200$ & $4.173$ & $4.078$\\
+Bulk modulus $B_0$ (GPa) & $184$ & $195$ & $133$ & $143$ & $173$\\
+$B_0'$ & $5.7$ & & $6.1$ & & \\
+$d$-band top at $L$ (eV below $E_F$) & $1.63$ & & & $1.90$ & $2.3$\\
+\bottomrule
+\end{tabular}
+\end{center}
+``This potential'' is the reference calculation with the 11-electron
+parameters of Table~\ref{tab:auhgh}; ``literature'' are
+all-electron-quality values (Ambrosetti and Silvestrelli 2016 for $a_0$
+and $B_0$; Rangel \emph{et al.}\ 2012 for the $d$ band, which is quoted
+with spin--orbit coupling). Three lessons.
+(i) The familiar statement ``LDA overbinds, PBE underbinds'' is visible in
+both pairs of columns: PBE gives a lattice constant $0.11$--$0.12$\,\AA{}
+larger and a bulk modulus about $50$\,GPa smaller than LDA. (ii) The
+11-electron pseudopotential adds $0.03$--$0.04$\,\AA{} to $a_0$ and takes
+about $10$\,GPa off $B_0$ compared with all-electron-quality
+calculations --- enough to move the LDA lattice constant from slightly
+below to slightly above experiment. This is a property of the
+pseudopotential (no semicore states, no nonlinear core correction), not
+of your code: reproduce the first and third columns. (iii) Spin--orbit
+coupling changes these numbers little (Stage~4): at
+$E_{\mathrm{cut}} = 35$\,Ha with a $6^3$ mesh, LDA gives
+$4.095$\,\AA, $184$\,GPa without and $4.084$\,\AA, $190$\,GPa with SOC;
+comparison with the first column also shows that the equation of state
+is converged with respect to cutoff and mesh at the level of
+$0.003$\,\AA{} and $1$\,GPa. The $d$-band position discrepancy versus
+photoemission and optics is a known limitation of LDA and GGA ---
+reproduce the DFT number, not experiment. The SCF for the metal must converge in
+about ten iterations with Kerker--Pulay mixing; watch the difference
+between the two energy expressions \eqref{eq:fdirect} and \eqref{eq:ftot}
+close quadratically. A typical history (reference calculation,
+$E_{\mathrm{cut}} = 40$\,Ha, $8^3$ mesh, SOC on):
+\begin{center}\small
+\begin{tabular}{@{}cccc@{}}
+\toprule
+iteration & $\|R\|$ & $F$ (Ha), Eq.~\eqref{eq:ftot} & Eq.~\eqref{eq:fdirect} $-$ Eq.~\eqref{eq:ftot}\\
+\midrule
+1 & $6.1\times10^{-1}$ & $-33.541764$ & $4.2\times10^{-1}$\\
+2 & $2.3\times10^{-1}$ & $-33.330984$ & $1.3\times10^{-2}$\\
+3 & $5.4\times10^{-2}$ & $-33.325191$ & $-5.9\times10^{-4}$\\
+4 & $1.8\times10^{-3}$ & $-33.325816$ & $2.1\times10^{-6}$\\
+5 & $5.9\times10^{-4}$ & $-33.325816$ & $6.0\times10^{-7}$\\
+6 & $3.4\times10^{-5}$ & $-33.325815$ & $-6.2\times10^{-10}$\\
+8 & $2.0\times10^{-6}$ & $-33.325815$ & $7\times10^{-12}$\\
+10 & $4.7\times10^{-8}$ & $-33.325815$ & $-4\times10^{-13}$\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Stage 4: gold with spin--orbit coupling --- the physics}
+\begin{enumerate}[leftmargin=2em]
+\item \textbf{Kramers pairs}: every eigenvalue doubly degenerate at
+every $\kk$ (inversion $\times$ time reversal), to the accuracy of the
+eigensolver (the reference calculation finds $4\times10^{-11}$\,Ha on the
+SCF mesh after three LOBPCG iterations per step).
+\item \textbf{Cubic degeneracies}: with a $\Gamma$-centered mesh, the
+quartets at $\Gamma$ are exact and all symmetry-equivalent $\kk$-points
+agree to solver accuracy.
+\item \textbf{Level scheme at the high-symmetry points},
+Table~\ref{tab:goldlevels}: without SOC two $d$ levels at $\Gamma$ (a
+$t_{2g}$ triplet and an $e_g$ doublet, each $\times2$ for spin); with SOC
+three, with degeneracies $4, 2, 4$ in ascending order. Published
+fully-relativistic band structures of Au agree with these values to
+within the differences between pseudopotentials and functionals
+($\sim0.1$\,eV).
+\item \textbf{Energetics barely move}: switching SOC on lowers the
+free energy by about $0.02$\,Ha, reduces $a_0$ by $0.012$\,\AA{} and
+raises $B_0$ by $6$\,GPa (reference equation-of-state fits, LDA,
+$E_{\mathrm{cut}} = 35$\,Ha, $6^3$ mesh: $4.095\to4.084$\,\AA,
+$184\to190$\,GPa) --- a check that SOC entered as a (strong) band
+effect, not as an energy-scale bug.
+\item \textbf{Switch test}: SOC on/off touches only the $k^{\ell}$ blocks;
+with $k^{\ell} = 0$ the spinor code must return every eigenvalue exactly
+twice (and, if you also wrote a scalar code with two electrons per
+orbital, reproduce its eigenvalues and free energy to solver precision).
+\end{enumerate}
+
+\begin{table}[H]
+\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+Point & SOC & Levels (eV relative to $E_F$)\\
+\midrule
+$\Gamma$ & off & $-10.06$,\ \ $-4.82\,(\times3)$,\ \ $-3.28\,(\times2)$,\ \ $15.97$\\
+         & on  & $-10.06$,\ \ $-5.45\,(\times2)$,\ \ $-4.24$,\ \ $-3.02\,(\times2)$,\ \ $15.97$\\
+\midrule
+$X$ & off & $-7.20$,\ \ $-6.88$,\ \ $-2.09$,\ \ $-1.70\,(\times2)$,\ \ $0.96$,\ \ $5.76$\\
+    & on  & $-7.32$,\ \ $-7.03$,\ \ $-2.31$,\ \ $-2.09$,\ \ $-1.05$,\ \ $0.71$,\ \ $5.78$\\
+\midrule
+$L$ & off & $-7.47$,\ \ $-4.86\,(\times2)$,\ \ $-2.03\,(\times2)$,\ \ $-1.06$,\ \ $3.07$\\
+    & on  & $-7.56$,\ \ $-5.57$,\ \ $-4.38$,\ \ $-2.36$,\ \ $-1.63$,\ \ $-1.22$,\ \ $3.13$\\
+\midrule
+$W$ & off & $-6.10$,\ \ $-5.28\,(\times2)$,\ \ $-3.42$,\ \ $-1.70$,\ \ $4.71$,\ \ $6.40\,(\times2)$\\
+    & on  & $-6.31$,\ \ $-5.73$,\ \ $-5.15$,\ \ $-3.25$,\ \ $-1.63$,\ \ $4.70$,\ \ $5.60$,\ \ $6.91$\\
+\midrule
+$K$ & off & $-6.59$,\ \ $-5.97$,\ \ $-3.95$,\ \ $-2.98$,\ \ $-2.16$,\ \ $3.85$,\ \ $4.73$\\
+    & on  & $-6.75$,\ \ $-6.17$,\ \ $-4.06$,\ \ $-3.01$,\ \ $-1.95$,\ \ $3.76$,\ \ $4.63$\\
+\bottomrule
+\end{tabular}
+\caption{Kohn--Sham levels of gold in eV relative to $E_F$ from the
+reference calculation (LDA, $q=11$, $a = 4.0782$\,\AA,
+$E_{\mathrm{cut}} = 40$\,Ha, $\Gamma$-centered $8^3$ mesh, MP1
+$\sigma = 0.01$\,Ha; $\mu = 0.58322$\,Ha, $F = -33.325815$\,Ha). ``SOC
+off'' levels were evaluated in the same self-consistent potential with
+$k^\ell = 0$. Multiplicities count spatial states (SOC off) or Kramers
+pairs (SOC on). Compare with Fig.~\ref{fig:bands}.}
+\label{tab:goldlevels}
+\end{table}
+
+\section{Stage 5: topology}
+\begin{enumerate}[leftmargin=2em]
+\item The sanity checks of Chapter~\ref{ch:topology} (empty-lattice
+parities, the cosine-potential inversion, $\Pi^2 = \mathbf 1$,
+$[\hat P,\hat H] = 0$, all-even at $\Gamma$, SOC-off parities,
+Wilson-loop pinning, robustness).
+\item Target: $\delta_\Gamma = +1$, $\delta_X = -1$, $\delta_L = -1$,
+hence $(\nu_0;\nu_1\nu_2\nu_3) = (1;000)$ for the lowest six Kramers
+pairs, with a strictly positive direct gap between spinor bands 12 and 13
+(Section~\ref{sec:directgap}).
+\item Wilson loops: the end-point pattern of Fig.~\ref{fig:wcc} (one
+Kramers pair at $\theta=\pi$ only on the line through $\Gamma$), and,
+with sufficient resolution, $z(k_3{=}0) = 1$, $z(k_3{=}\tfrac12) = 0$,
+hence the same $\nu_0 = 1$, $\nu_3 = 0$.
+\end{enumerate}
+
+\section{Stage 6: transport and optics}
+\begin{enumerate}[leftmargin=2em]
+\item \textbf{Velocity operator}: the Hellmann--Feynman test of
+Section~\ref{sec:velocity} at a generic $\kk$ (the reference uses
+fractional $\kk = (0.13, 0.27, 0.41)$): finite-difference band slopes and
+pair-averaged diagonal velocity elements agree to $10^{-7}$\,a.u.; the
+velocity matrices are Hermitian; dropping the nonlocal term changes the
+velocities by $0.1$--$0.3$\,a.u.
+\item \textbf{Fermi-surface numbers} (fixed potential of Case~B,
+irreducible wedge of a $\Gamma$-centered $40^3$ mesh, Gaussian width
+$0.005$\,Ha): $g(E_F) = \GFb$ states/eV per atom,
+$\hbar\omega_p = \WPb$\,eV, r.m.s.\ Fermi velocity
+$\VFb\times10^{6}$\,m/s, effective number of carriers \NEFF. Expect
+agreement to a few percent, not to all digits: these are Fermi-surface
+integrals and depend on mesh and broadening.
+\item \textbf{Colour chain}: $R\equiv1$ gives sRGB $(255,255,255)$;
+$R\equiv0.5$ gives $(188,188,188)$; a mirror that reflects only above
+600\,nm gives $(234,0,0)$; one that reflects only below 480\,nm gives
+$(67,0,255)$.
+\item \textbf{Spectrum}: interband $\varepsilon_2$ below 1 up to
+$\approx1.2$\,eV and above 2 from $\ONSET$\,eV, reflectivity above $0.9$ in
+the near infrared and falling through $0.7$ at $\EDGE$\,eV
+(Fig.~\ref{fig:optics}); Kramers--Kronig consistency of
+Eq.~\eqref{eq:epsinter}; sum rule of Chapter~\ref{ch:colour}.
+\end{enumerate}
+
+\section{Stage 7: convergence studies (the habits of a professional)}
+For each observable, produce convergence curves in
+(i) $E_{\mathrm{cut}}$ at fixed mesh, (ii) $\kk$-mesh at fixed
+$E_{\mathrm{cut}}$, (iii) smearing $\sigma \to 0$ jointly with the mesh.
+Quote every number in your write-up with the settings that converge it to a
+stated tolerance. This discipline --- not any single number --- is what makes
+a DFT calculation trustworthy.
+
+\section*{Further reading}
+\begin{itemize}[leftmargin=2em]
+\item R.\ M.\ Martin, \emph{Electronic Structure: Basic Theory and Practical
+Methods} (CUP) --- the encyclopedic companion to everything here.
+\item M.\ C.\ Payne et al., Rev.\ Mod.\ Phys.\ \textbf{64}, 1045 (1992) ---
+the classic plane-wave/iterative-methods review.
+\item C.\ Hartwigsen, S.\ Goedecker, J.\ Hutter, Phys.\ Rev.\ B \textbf{58},
+3641 (1998) --- the relativistic HGH pseudopotential tables (your gold
+parameters, including SOC).
+\item J.\ P.\ Perdew, K.\ Burke, M.\ Ernzerhof, Phys.\ Rev.\ Lett.\
+\textbf{77}, 3865 (1996); J.\ P.\ Perdew, Y.\ Wang, Phys.\ Rev.\ B
+\textbf{45}, 13244 (1992) --- PBE and PW92.
+\item A.\ V.\ Knyazev, SIAM J.\ Sci.\ Comput.\ \textbf{23}, 517 (2001) ---
+LOBPCG; U.\ Hetmaniuk, R.\ Lehoucq, J.\ Comput.\ Phys.\ \textbf{218}, 324
+(2006), and J.\ A.\ Duersch et al., SIAM J.\ Sci.\ Comput.\ \textbf{40},
+C655 (2018) --- why and how to keep its basis orthonormal.
+\item G.\ Kresse, J.\ Furthm\"uller, Phys.\ Rev.\ B \textbf{54}, 11169
+(1996) --- iterative diagonalization, Pulay mixing and Kerker
+preconditioning for metals.
+\item P.\ Pyykk\"o, Chem.\ Rev.\ \textbf{88}, 563 (1988) --- relativity in
+chemistry; why gold is gold.
+\item M.\ Krack, Theor.\ Chem.\ Acc.\ \textbf{114}, 145 (2005) --- the PBE
+parameter sets of the same pseudopotential family.
+\item D.\ Vanderbilt, \emph{Berry Phases in Electronic Structure Theory}
+(CUP, 2018) --- the book-length version of Chapter~\ref{ch:topology}.
+\item L.\ Fu, C.\ L.\ Kane, Phys.\ Rev.\ B \textbf{76}, 045302 (2007) ---
+the parity formula for the $\mathbb{Z}_2$ invariant.
+\item A.\ A.\ Soluyanov, D.\ Vanderbilt, Phys.\ Rev.\ B \textbf{83}, 235401
+(2011) --- the Wilson-loop (Wannier charge center) method.
+\item B.\ Yan et al., Nat.\ Commun.\ \textbf{6}, 10167 (2015) ---
+topological states on the gold surface.
+\item S.\ LaShell, B.\ A.\ McDougall, E.\ Jensen, Phys.\ Rev.\ Lett.\
+\textbf{77}, 3419 (1996) --- the spin-split surface state of Au(111).
+\item N.\ W.\ Ashcroft, N.\ D.\ Mermin, \emph{Solid State Physics},
+chapters 1, 12 and 13 --- the Drude model and semiclassical transport
+behind Chapter~\ref{ch:conductivity}.
+\item P.\ B.\ Allen, Phys.\ Rev.\ B \textbf{17}, 3725 (1978) --- the
+electron--phonon theory of the resistivity of metals
+(Eq.~\eqref{eq:rhoT}); S.\ Y.\ Savrasov, D.\ Y.\ Savrasov, Phys.\ Rev.\ B
+\textbf{54}, 16487 (1996) --- first-principles $\lambda_{\mathrm{tr}}$
+and resistivities of eight metals; T.\ Gunst, A.\ Blom, K.\ Stokbro,
+Proc.\ SISPAD 2018, p.~79 --- phonon-limited resistivity of Au, Ag, Cu.
+\item T.\ Rangel et al., Phys.\ Rev.\ B \textbf{86}, 125125 (2012) ---
+the band structure of gold from many-body perturbation theory, with a
+table of measured band energies (Table~\ref{tab:dbandexp}).
+\item A.\ Ambrosetti, P.\ L.\ Silvestrelli, Phys.\ Rev.\ B \textbf{94},
+045124 (2016) --- lattice constants and bulk moduli of Cu, Ag, Au with
+LDA, PBE and beyond.
+\item P.\ B.\ Johnson, R.\ W.\ Christy, Phys.\ Rev.\ B \textbf{6}, 4370
+(1972) --- the measured optical constants of the noble metals (the
+tables used here are in \texttt{verification/reference\_data/}, from
+the public-domain refractiveindex.info database); R.\ L.\ Olmon et al.,
+Phys.\ Rev.\ B \textbf{86}, 235147 (2012) --- a modern remeasurement
+for gold.
+\item C.\ Wyman, P.-P.\ Sloan, P.\ Shirley, J.\ Comput.\ Graph.\ Tech.\
+\textbf{2}(2), 1 (2013) --- the analytic colour-matching functions of
+Eq.~\eqref{eq:cmf}.
+\item The DFTK.jl and GPAW documentation --- two readable open-source
+plane-wave codes to compare designs against (resist reading their source
+until yours works).
+\end{itemize}
+
+\vspace{1em}
+\begin{keybox}{You are ready}
+Every equation your program needs is now on paper: the spinor Kohn--Sham
+problem \eqref{eq:spinorks}, its plane-wave matrix elements
+(Chapter~\ref{ch:hamiltonian}), the XC input (Chapter~\ref{ch:xc}), the
+relativistic ionic data (Chapters~\ref{ch:pseudo}--\ref{ch:soc}), and the
+solvers (Chapter~\ref{ch:algorithms}) in GPU-native form
+(Chapter~\ref{ch:gpu}). Build the program in the order of this chapter:
+components, empty lattice, one screened gold ion, scalar-relativistic
+gold, the full spin--orbit band structure of the metal that is yellow
+because of special relativity, its topological invariant, and finally
+its Fermi-surface and optical properties.
+\end{keybox}

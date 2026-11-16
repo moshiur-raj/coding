@@ -1,0 +1,255 @@
+\chapter{The Hamiltonian in the Plane-Wave Basis}
+\label{ch:hamiltonian}
+
+This chapter assembles, term by term, exactly what your program computes.
+Throughout, a spinor state at fixed $\kk$ is the coefficient array
+$c^{s}(\GG)$, $s \in \{\uparrow,\downarrow\}$, over the sphere
+$\tfrac12|\kk+\GG|^2 \le E_{\mathrm{cut}}$.
+
+\section{Representations and the FFT bridge}
+
+Two representations of $u_{n\kk}$:
+\begin{itemize}[leftmargin=2em]
+\item \textbf{Reciprocal space}: coefficients $c(\GG)$ on the cutoff sphere
+(compact; kinetic and nonlocal terms are cheap here).
+\item \textbf{Real space}: values $u(\rr_i)$ on a uniform $N_1{\times}N_2
+{\times}N_3$ grid spanning the cell (local potential is cheap here).
+\end{itemize}
+The bridge is the discrete Fourier transform: zero-pad $c(\GG)$ from the
+sphere into the full FFT box, inverse-FFT to get $u(\rr_i)$, and conversely
+FFT then gather the sphere. How fine must the grid be? Let $G_{\max} = \sqrt{2E_{\mathrm{cut}}}$. The
+density $|u|^2$ contains wavevectors up to $2G_{\max}$, so the grid must
+represent all $|\GG| \le 2G_{\max}$:
+$N_i \ge \tfrac{2}{\pi}\, G_{\max}\, |\mathbf a_i| + 1$,
+rounded up to an FFT-friendly size ($2^a 3^b 5^c 7^d$). The same grid is
+enough for the product $\veff\, u$: the product does contain wavevectors up
+to $3G_{\max}$, but those alias back only onto $|\GG| \ge G_{\max}$,
+outside the sphere you keep. For gold ($|\mathbf a_i| = a/\sqrt2 =
+5.45$\,Bohr) at $E_{\mathrm{cut}} = 40$\,Ha this gives $N_i \ge 33$ (use
+$35$ or $36$); at $60$\,Ha, $N_i = 40$. All conversions
+follow the conventions of Eq.~\eqref{eq:fourierconv}.
+
+\section{Term 1: kinetic energy --- diagonal}
+
+\begin{equation}
+\braket{\kk{+}\GG | -\tfrac12\nabla^2 | \kk{+}\GG'}
+= \tfrac12 |\kk + \GG|^2\, \delta_{\GG\GG'}
+\qquad\Longrightarrow\qquad
+(\hat T c)(\GG) = \tfrac12 |\kk+\GG|^2\; c(\GG),
+\end{equation}
+an elementwise multiply, identical on both spin components.
+
+\section{Term 2: local potential --- FFT convolution}
+
+The total local potential
+\begin{equation}
+V_{\mathrm{eff,loc}}(\rr) = V_{\mathrm{loc,ion}}(\rr) + \vH(\rr) + \vxc(\rr)
+\end{equation}
+is multiplicative in real space; in reciprocal space it is a convolution.
+Never build the convolution matrix --- apply it as
+\begin{equation}
+c(\GG) \;\xrightarrow{\;\text{pad + IFFT}\;}\; u(\rr_i)
+\;\xrightarrow{\;\times V_{\mathrm{eff,loc}}(\rr_i)\;}\;
+\;\xrightarrow{\;\text{FFT + gather}\;}\; (\hat V c)(\GG),
+\end{equation}
+costing $O(N \log N)$ per band. This FFT sandwich dominates the runtime of a plane-wave code and batches
+perfectly over bands, spins, and $\kk$-points
+(Algorithm~\ref{alg:applyh}).
+
+\paragraph{Ionic local part via structure factor.} Being a lattice sum of
+identical atomic contributions, its Fourier components factorize:
+\begin{equation}
+V_{\mathrm{loc,ion}}(\GG) = \frac{1}{\Omega}\, S(\GG)\;
+\tilde V_{\mathrm{loc}}(|\GG|),
+\qquad
+S(\GG) = \sum_{a} \ee^{-\ii \GG \cdot \RR_a},
+\label{eq:structfact}
+\end{equation}
+with $\tilde V_{\mathrm{loc}}$ the analytic HGH form
+\eqref{eq:hghlocG}--\eqref{eq:hghlocpoly}. For
+one atom at the origin, $S(\GG) = 1$. Build it once per geometry on the FFT
+box (all $\GG$ of the box, with the $\GG=0$ entry set by rule~2 below) and
+inverse-FFT to the real-space grid: $V_{\mathrm{loc,ion}}(\rr_j) =
+N_{\mathrm{grid}}\cdot\mathrm{IFFT}[V_{\mathrm{loc,ion}}(\GG)]$, which must
+come out real to rounding error.
+
+\section{Term 3: Hartree potential --- Poisson in one line}
+
+The Poisson equation $\nabla^2 \vH = -4\pi n$ diagonalizes in plane waves:
+\begin{equation}
+\boxed{\;
+\vH(\GG) = \frac{4\pi\, n(\GG)}{|\GG|^2}, \qquad \GG \ne 0,
+\;}
+\qquad
+E_{\mathrm H} = \frac{\Omega}{2} \sum_{\GG \ne 0}
+\frac{4\pi\, |n(\GG)|^2}{|\GG|^2}.
+\label{eq:hartreeG}
+\end{equation}
+One FFT of the density, one elementwise multiply, one inverse FFT. This
+``free'' Poisson solver is the second great gift of periodic boundary
+conditions.
+
+\paragraph{The $\GG = 0$ problem.}
+\label{sec:g0}
+Three quantities diverge individually at $\GG = 0$: the Hartree potential of
+the electrons ($+4\pi N_e / \Omega G^2$), the local pseudopotential of the
+ions ($-4\pi Z_{\mathrm{ion}} N_{\mathrm{at}} / \Omega G^2$), and the
+ion--ion interaction. In a neutral cell ($N_e = Z_{\mathrm{ion}}
+N_{\mathrm{at}}$) the divergences cancel exactly. What survives is finite, and the recipe is three rules:
+\begin{enumerate}[leftmargin=2em]
+\item $\vH(\GG{=}0) = 0$.
+\item $V_{\mathrm{loc,ion}}(\GG{=}0) = \frac{1}{\Omega}\sum_a \alpha_a$,
+where $\alpha_a$ is what is left of $\tilde V_{\mathrm{loc}}(G\to0)$ after
+the $-4\pi Z_{\mathrm{ion}}/G^2$ divergence is removed,
+\begin{equation}
+\alpha = \int \Big[V_{\mathrm{loc}}(r) + \frac{Z_{\mathrm{ion}}}{r}\Big]
+\dd\rr
+= 2\pi Z_{\mathrm{ion}}\, r_{\mathrm{loc}}^2
++ (2\pi)^{3/2} r_{\mathrm{loc}}^3\,
+\big[C_1 + 3C_2 + 15C_3 + 105C_4\big].
+\label{eq:alphaZ}
+\end{equation}
+\item The ion--ion energy is the Ewald energy of point charges in a uniform
+neutralizing background (Section~\ref{sec:ewald}).
+\end{enumerate}
+With rule 2 the constant $\alpha/\Omega$ is simply part of the potential:
+it shifts every eigenvalue by the same amount and contributes
+$\frac{N_e}{\Omega}\sum_a\alpha_a$ to the energy through the ordinary
+local-potential term --- no separate bookkeeping. (Some texts instead set
+$V_{\mathrm{loc,ion}}(0) = 0$ and add this energy by hand; either is fine,
+but never do both.) These constants shift total energies, not eigenvalue
+differences; because they depend on $\Omega$, a mistake shows up as a wrong
+lattice constant.
+
+\section{Term 4: nonlocal pseudopotential --- batched projections}
+
+From Eqs.~\eqref{eq:separable}, \eqref{eq:hghso}, with the reciprocal-space
+projectors $\tilde\beta_{i\ell m}(\kk{+}\GG)$ of Eq.~\eqref{eq:betaG}
+(built from the Bessel transforms $\tilde p_{i\ell}$ of
+Eq.~\eqref{eq:hghprojG} and the real harmonics of
+Table~\ref{tab:realylm}), the action on a spinor is
+\begin{equation}
+(\hat V_{\mathrm{NL}}\, c)^{s}(\GG)
+= \sum_{a}\sum_{i\ell m}
+\tilde\beta_{i\ell m}(\kk{+}\GG)
+\sum_{j m' s'} D^{\ell}_{(i m s),(j m' s')}
+\underbrace{\sum_{\GG'} \tilde\beta^{*}_{j\ell m'}(\kk{+}\GG')\,
+c^{s'}(\GG')}_{\text{projection } P_{j\ell m' s'}} .
+\label{eq:vnl_action}
+\end{equation}
+Two GEMMs around a tiny block-diagonal matrix. For the gold potentials of
+Table~\ref{tab:auhgh} ($s,p,d$ channels, two radial projectors each) there
+are $2\,(1 + 3 + 5) = 18$ projector functions, hence a $36\times36$ matrix
+$D$ once spin is included --- microscopic compared to $N_{\mathrm{pw}}$.
+The nonlocal energy is $E_{\mathrm{NL}} = \sum_{n\kk} w_\kk f_{n\kk}\,
+P_{n\kk}^\dagger D\, P_{n\kk}$ with $P$ the vector of projections.
+
+\section{Ion--ion energy: Ewald summation}
+\label{sec:ewald}
+
+The electrostatic energy of point charges $Z_{\mathrm{ion}}$ on a lattice
+(with neutralizing background) converges conditionally in both real and
+reciprocal space. Ewald's trick: add and subtract Gaussian charge clouds of
+width $\eta^{-1/2}$ on each ion, splitting the sum into two rapidly
+convergent pieces,
+\begin{equation}
+\begin{aligned}
+E_{\mathrm{Ewald}}
+={}& \frac{2\pi}{\Omega} \sum_{\GG\neq 0}
+\frac{\ee^{-G^2/4\eta}}{G^2}\, \big|S_Z(\GG)\big|^2
++ \frac12 \sum_{a b}{\sum_{\RR}}'
+Z_a Z_b\, \frac{\mathrm{erfc}\big(\sqrt{\eta}\,
+|\RR + \RR_a - \RR_b|\big)}{|\RR + \RR_a - \RR_b|}\\
+&- \sqrt{\frac{\eta}{\pi}} \sum_a Z_a^2
+- \frac{\pi\, \big(\sum_a Z_a\big)^2}{2\,\eta\,\Omega},
+\end{aligned}
+\label{eq:ewald}
+\end{equation}
+where $S_Z(\GG) = \sum_a Z_a \ee^{-\ii\GG\cdot\RR_a}$ and the primed sum
+omits the self term $\RR = 0, a = b$. The result is independent of the
+splitting parameter $\eta$ --- vary $\eta$ by a factor of 4 and check
+invariance to $10^{-10}$; it is the classic unit test. In practice take
+$\eta \approx 0.5$\,Bohr$^{-2}$ for the gold cell and truncate where the
+terms fall below rounding error: lattice vectors with
+$|\RR| \le 6/\sqrt\eta$ (where $\mathrm{erfc} < 10^{-16}$) and reciprocal
+vectors with $|\GG| \le 12\sqrt\eta$ (where
+$\ee^{-G^2/4\eta} < 10^{-15}$). For one atom per cell
+this is a few thousand terms, computed once per geometry.
+
+\section{The assembled total (free) energy}
+
+The most transparent form adds up the pieces one by one (the ``direct''
+form, Eq.~\eqref{eq:etot1}):
+\begin{equation}
+\boxed{
+\begin{aligned}
+F ={}& \underbrace{\sum_{n\kk} w_\kk f_{n\kk} \sum_{\GG s}
+\tfrac12|\kk{+}\GG|^2\,|c^s_{n\kk}(\GG)|^2}_{T_s}
++ \underbrace{\int V_{\mathrm{loc,ion}}\, n\,\dd\rr}_{E_{\mathrm{loc}}}
++ E_{\mathrm{NL}}\\
+&+ E_{\mathrm H}[n] + \Exc[n,\mathbf m]
++ E_{\mathrm{Ewald}}
+- \sigma\sum_{n\kk} w_\kk\, s_{n\kk} .
+\end{aligned}}
+\label{eq:fdirect}
+\end{equation}
+Equivalently, using the eigenvalues (Eq.~\eqref{eq:etot2}; valid when the
+$\alpha/\Omega$ constant is inside the Hamiltonian, rule~2 of
+Section~\ref{sec:g0}). The eigenvalue sum already contains $T_s$,
+$E_{\mathrm{loc}}$ and $E_{\mathrm{NL}}$ exactly once, so only the Hartree
+and XC terms need double-counting corrections:
+\begin{equation}
+\boxed{
+\begin{aligned}
+F ={}& \sum_{n\kk} w_{\kk}\, f_{n\kk}\, \varepsilon_{n\kk}
+- \sigma \sum_{n\kk} w_{\kk}\, s(f_{n\kk})
+\\
+&- E_{\mathrm H}[n]
+- \int \Big[\vxc\, n + \mathbf B_{\mathrm{xc}}\cdot\mathbf m\Big] \dd\rr
++ \Exc[n, \mathbf m]
++ E_{\mathrm{Ewald}} .
+\end{aligned}}
+\label{eq:ftot}
+\end{equation}
+Real-space integrals use the grid ($\int \to \frac{\Omega}{N_{\mathrm{grid}}}
+\sum_i$). One subtlety: in Eq.~\eqref{eq:ftot} the eigenvalues were computed
+in the potential of the \emph{input} density, so $E_{\mathrm H}$,
+$\int\vxc n$ and $\Exc$ there must also use the input density, whereas
+Eq.~\eqref{eq:fdirect} is naturally evaluated with the output density
+(the one built from the current wavefunctions and occupations).
+The two numbers differ during the SCF iterations and coincide at
+convergence; their difference shrinks quadratically with the density error
+and is a superb convergence diagnostic. (Do not expect $F$ to decrease
+monotonically from one iteration to the next: density mixing is not a
+minimization, and small oscillations early on are normal.)
+
+\paragraph{Equilibrium lattice constant and bulk modulus.} Compute
+$F(\Omega)$ at 7--9 volumes within $\pm 8\%$ of experiment, fit the
+Birch--Murnaghan equation of state
+\begin{equation}
+E(V) = E_0 + \frac{9 V_0 B_0}{16}
+\left\{ \Big[\big(\tfrac{V_0}{V}\big)^{2/3} - 1\Big]^3 B_0'
++ \Big[\big(\tfrac{V_0}{V}\big)^{2/3} - 1\Big]^2
+\Big[6 - 4\big(\tfrac{V_0}{V}\big)^{2/3}\Big] \right\},
+\end{equation}
+extracting $V_0$ (hence $a_0 = (4V_0)^{1/3}$ for FCC), $B_0$, $B_0'$ by
+nonlinear least squares (a parabola through the lowest three points gives
+the starting values). In atomic units $B_0$ comes out in Ha/Bohr$^3$;
+$1$\,Ha/Bohr$^3 = 29\,421.0$\,GPa. Targets in
+Chapter~\ref{ch:verify}. One caveat: at fixed $E_{\mathrm{cut}}$ the number
+of plane waves changes in jumps as the cell is strained, which makes $F(V)$
+slightly ragged and can bias the fitted $a_0$ and $B_0$ if the cutoff is too
+low. Converge the lattice constant with respect to $E_{\mathrm{cut}}$, not
+just the energy at one volume.
+
+\begin{gpubox}{GPU/JAX notes}
+The Hamiltonian is never materialized: it exists only as the function
+$c \mapsto \hat H c$ composed of (elementwise) $+$ (FFT sandwich) $+$ (two
+GEMMs). All three stages batch over the composite index (bands $\times$ spin
+$\times$ $\kk$): a single call applies $\hat H$ to \emph{every state in the
+calculation at once} --- shape
+$[N_k, N_b, 2, N_G^{\max}] \to$ same. Zero-pad/gather between sphere and FFT
+box with precomputed index arrays and \texttt{scatter/gather} (\texttt{.at[].add()}, see Section~\ref{sec:jaxprimer});
+masks handle the padded region. Ewald and structure factors are geometry-time
+constants --- compute in float64 on host or device, once.
+\end{gpubox}
