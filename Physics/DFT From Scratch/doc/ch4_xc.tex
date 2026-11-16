@@ -127,16 +127,18 @@ differentiation of Eq.~\eqref{eq:pw92}. Writing $Q(r_s) = 2A\big(\beta_1
 r_s^{1/2} + \beta_2 r_s + \beta_3 r_s^{3/2} + \beta_4 r_s^2\big)$ for the
 denominator inside the logarithm,
 \begin{equation}
+\begin{gathered}
 \frac{\dd\varepsilon_c}{\dd r_s}
 = -2A\alpha_1 \ln\!\Big(1 + \frac{1}{Q}\Big)
 + \frac{2A(1+\alpha_1 r_s)}{Q^2 + Q}\,\frac{\dd Q}{\dd r_s},
-\qquad
+\\
 \frac{\dd Q}{\dd r_s} = 2A\Big(\frac{\beta_1}{2 r_s^{1/2}} + \beta_2
 + \tfrac32\beta_3 r_s^{1/2} + 2\beta_4 r_s\Big).
+\end{gathered}
 \label{eq:pw92deriv}
 \end{equation}
 
-\begin{table}[h]
+\begin{table}[htbp]
 \centering
 \begin{tabular}{@{}lcccccc@{}}
 \toprule
@@ -211,8 +213,14 @@ n_\sigma$.
 
 LDA overbinds: for gold, all-electron-quality LDA calculations give a
 lattice constant $0.6\%$ too small ($4.053$ against a measured
-$4.078$\,\AA) and a bulk modulus $12\%$ too large ($195$ against
-$173$\,GPa). The next rung feeds the local
+$4.078$\,\AA) and a bulk modulus $13\%$ too large ($195$ against
+$173$\,GPa). (Both comparisons are with room-temperature experiment.
+Against the static-lattice value of Chapter~\ref{ch:intro},
+$a \approx 4.063$\,\AA, the LDA error shrinks to about $0.25\%$ but keeps its
+sign. For the bulk modulus the verdict depends on how the zero-point motion
+is removed: against the $0$\,K elastic constants, $\approx 180$\,GPa, LDA
+is still $8\%$ too stiff; against the $\approx 196$\,GPa used in
+density-functional benchmarks it is about right.) The next rung feeds the local
 \emph{gradient} to the functional. The natural dimensionless inhomogeneity
 measure is the \textbf{reduced gradient}
 \begin{equation}
@@ -230,9 +238,11 @@ F_x(s) = 1 + \kappa - \frac{\kappa}{1 + \mu s^2/\kappa},
 \label{eq:pbex}
 \end{equation}
 with $\kappa = 0.804$ and $\mu = \pi^2\beta/3 = 0.2195149727645171$.
-Every constant is fixed by an exact condition, not by fitting: $\mu$
-reproduces the correct linear response of the homogeneous gas (through its
-relation to the correlation gradient coefficient $\beta$ given below), and $\kappa$ saturates $F_x \le 1+\kappa$ to satisfy
+Every constant is fixed by an exact condition, not by fitting: $\mu$ is
+chosen so that, for slowly varying densities, the gradient correction to
+exchange cancels that to correlation (whose coefficient is the $\beta$
+given below), which preserves the LDA's excellent linear response of the
+homogeneous gas; and $\kappa$ saturates $F_x \le 1+\kappa$ to satisfy
 the Lieb--Oxford lower bound on $\Exc$. PBE correlation is
 \begin{equation}
 E_c^{\mathrm{PBE}} = \int n \Big[\varepsilon_c(r_s,\zeta)
@@ -255,8 +265,8 @@ that grid point). $H$ is built so that correlation vanishes in the
 rapid-variation limit and recovers the exact gradient expansion in the
 slow-variation limit. For nonmagnetic gold $\zeta = 0$ and $\phi = 1$
 throughout. (The PBE paper prints the rounded values $\beta = 0.066725$ and
-$\mu = 0.21951$; every production code uses the digits above, and the
-difference is visible --- $5\times10^{-6}$\,Ha in the total energy of gold.
+$\mu = 0.21951$; the libxc library and most production codes use the
+digits above, and the difference is visible --- $5\times10^{-6}$\,Ha in the total energy of gold.
 Type them in full.)
 
 For spin-polarized densities PBE exchange needs no new formula: apply the
@@ -299,12 +309,18 @@ field $2(\partial f/\partial\varsigma)\nabla n$; (4) its divergence by FFT;
 multiply by $\ii \GG$, inverse-FFT --- exact on the plane-wave grid, three
 batched FFTs, no finite-difference stencils. The divergence in
 \eqref{eq:vxcgga} is likewise done as $\mathrm{IFFT}[\,\ii\GG\cdot
-\mathrm{FFT}[\cdot]\,]$ (the ``White--Bird'' route). (ii) The pointwise parts
+\mathrm{FFT}[\cdot]\,]$ (the ``White--Bird'' route). Keep the real part of
+each inverse transform: on a grid with an even number of points the highest
+(Nyquist) frequency has no partner of opposite sign, so $\ii\GG$ times a
+real function's transform is not exactly the transform of a real function;
+a complex $\vxc$ would make $\hat H$ non-Hermitian. (ii) The pointwise parts
 of LDA/PBE are pure elementwise math, perfectly fused by XLA. (iii) You can
 implement \emph{only the energy density} $f(n, |\nabla n|^2)$ and obtain
 $\partial f/\partial n$ and $\partial f/\partial |\nabla n|^2$ by automatic
 differentiation --- one of the places where JAX genuinely shortens a DFT
-code. Guard against $n \to 0$ (clamp the density from below at
+code. (Without automatic differentiation, central differences with a
+relative step of $10^{-5}$ --- one-sided where $|\nabla n|^2 = 0$ ---
+reproduce the anchors at the end of this chapter to all quoted digits.) Guard against $n \to 0$ (clamp the density from below at
 $\sim10^{-12}$ before evaluating the functional) because negative powers
 of $n$ appear in the derivatives; with $f$ written in terms of
 $|\nabla n|^2$ there is no division by the gradient and no further guard
@@ -317,8 +333,8 @@ $2.3\%$ too large for gold in all-electron-quality calculations) but
 improves energetics. (With the 11-electron pseudopotential used here both
 lattice constants come out larger still, by $0.03$\,\AA{} (PBE) and
 $0.04$\,\AA{} (LDA); the
-computed values are in Chapter~\ref{ch:verify}, Stage~3.) Both place the $d$ bands a few tenths of an eV too
-close to the Fermi level compared with photoemission. Comparing them
+computed values are in Chapter~\ref{ch:verify}, Stage~3.) Both place the $d$ bands several tenths of an eV too
+close to the Fermi level compared with photoemission (Table~\ref{tab:dbandexp}). Comparing them
 against experiment is itself a classic exercise: it teaches you that the XC
 functional is a controlled physical approximation, not a fudge.
 
@@ -358,7 +374,10 @@ anisotropy). Two practical notes: where $|\mathbf m|$ is below a small
 threshold the direction $\hat{\mathbf m}$ is undefined --- set
 $B_{\mathrm{xc}}\hat{\mathbf m} = 0$ there; and for a GGA the gradients
 fed to the functional are those of $n_\pm$, i.e.\ of $n$ and
-$|\mathbf m|$.
+$|\mathbf m|$. (The gradient of $|\mathbf m|$ is ill-defined where
+$\mathbf m$ passes through zero; this is harmless for gold, where
+$\mathbf m \equiv 0$, but noncollinear GGA for magnets needs more care
+than this simple prescription.)
 
 \begin{keybox}{Sanity anchors for your implementation}
 For the unpolarized HEG at $r_s = 3$ (close to gold's $6s$ density):

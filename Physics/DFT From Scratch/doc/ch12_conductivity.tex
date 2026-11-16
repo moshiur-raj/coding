@@ -3,7 +3,8 @@
 \input{figdata/optics_numbers.tex}
 
 Gold is one of the best conductors there is: at room temperature its
-resistivity is $\rho = 2.2\,\mu\Omega\,$cm, i.e.\ a conductivity
+resistivity is $\rho = 2.2\,\mu\Omega\,$cm ($22$\,n$\Omega$\,m at
+$293$\,K), i.e.\ a conductivity
 $\sigma = 1/\rho = 4.5\times10^{7}$\,S/m. Can the program you have written
 predict this number? The honest answer has two halves, and separating them
 is the point of this chapter.
@@ -137,9 +138,11 @@ $DP \gets P\,D^{\mathsf T}$ \Comment{as in \textsc{ApplyH}}
 projector table with respect to $q_\alpha$
 \State $\partial P[n,(s,p)] \gets \sum_\GG
 [\partial_\alpha\tilde\beta_p(\mathbf q)]^*\,C[n,s,\GG]$
-\State $v^\alpha_{mn} \gets \sum_{\GG s}\overline{C[m,s,\GG]}\; q_\alpha\, C[n,s,\GG]
-\;+\; \sum_{a}\overline{\partial P[m,a]}\,DP[n,a]
-\;+\; \sum_{a}\overline{P[m,a]}\,(\partial P\,D^{\mathsf T})[n,a]$
+\State $v^\alpha_{mn} \gets \sum_{\GG s}\overline{C[m,s,\GG]}\; q_\alpha\, C[n,s,\GG]$
+\Comment{kinetic part}
+\State $v^\alpha_{mn} \mathrel{+}= \sum_{a}\overline{\partial P[m,a]}\,DP[n,a]
++ \sum_{a}\overline{P[m,a]}\,(\partial P\,D^{\mathsf T})[n,a]$
+\Comment{nonlocal part}
 \EndFor
 \State \Return $v^\alpha_{mn}$ \Comment{three Hermitian $N_b\times N_b$ matrices}
 \EndFunction
@@ -161,8 +164,8 @@ Algorithm~\ref{alg:velocity}, nonlocal term included: solve at
 $\kk \pm h\,\hat{\mathbf e}_\alpha$ ($h = 10^{-4}$\,Bohr$^{-1}$) and compare
 $[\varepsilon_n(\kk+h\hat{\mathbf e}_\alpha) -
 \varepsilon_n(\kk-h\hat{\mathbf e}_\alpha)]/2h$ with the pair-averaged
-$v^\alpha_{nn}$. In the reference calculation they agree to
-$10^{-7}$\,a.u.\ for all bands at a generic $\kk$, the matrices are
+$v^\alpha_{nn}$. In the reference calculation they agree to better
+than $10^{-6}$\,a.u.\ for all bands at a generic $\kk$, the matrices are
 Hermitian to rounding error, and the off-diagonal element inside each
 Kramers pair is below $10^{-8}$. Without the nonlocal term the
 discrepancy is $0.1$--$0.3$\,a.u.\ for every band --- as large as the
@@ -271,9 +274,11 @@ $\sigma/\tau$ ($10^{6}$\,S\,m$^{-1}$\,fs$^{-1}$) & \ST & \STb & $1.66$ & ---\\
 \bottomrule
 \end{tabular}
 \end{center}
-(Gaussian width $s = 0.005$\,Ha; changing $s$ between $0.003$ and
-$0.01$\,Ha moves $\hbar\omega_p$ by about $0.1$--$0.2$\,eV on these
-meshes, which is the accuracy of the numbers. Experimental values:
+(Gaussian width $s = 0.005$\,Ha. On the $40^3$ mesh, $s = 0.01$\,Ha
+raises $\hbar\omega_p$ by $0.2$\,eV and $s = 0.003$\,Ha lowers it by
+$0.5$\,eV: so narrow a Gaussian samples the Fermi surface unevenly on a
+mesh of this density. Treat the numbers as accurate to a few tenths of an
+eV. Experimental values:
 $g(E_F)$ from the electronic specific heat coefficient
 $\gamma = 0.69$\,mJ\,mol$^{-1}$K$^{-2}$, which includes an enhancement
 by the electron--phonon interaction of the order of 10\%; $\omega_p$
@@ -350,8 +355,8 @@ matrix elements, Fermi-surface sums --- but none of it has been carried
 out for this document, and Eq.~\eqref{eq:rhoT} is quoted from the
 literature, not derived. That the programme works is established: a
 published first-principles Boltzmann calculation for gold (Gunst, Blom
-and Stokbro, 2018) obtains $27.0$\,n$\Omega$\,m at 300\,K against a
-measured $20.5$, and reproduces the ordering Au $>$ Cu $>$ Ag. The residual resistivity at low temperature is different again:
+and Stokbro, 2018) obtains $27.0$\,n$\Omega$\,m at 300\,K, some $20$--$30\%$ above the
+measured room-temperature value ($\approx 22$\,n$\Omega$\,m), and reproduces the ordering Au $>$ Cu $>$ Ag. The residual resistivity at low temperature is different again:
 it is caused by impurities and defects and is a property of the sample,
 not of gold.
 

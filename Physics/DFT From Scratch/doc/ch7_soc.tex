@@ -28,9 +28,9 @@ two-component spinors:
 \begin{equation}
 \Ha_{\mathrm{Pauli}} =
 \underbrace{\frac{\hat p^2}{2} + V}_{\text{non-relativistic}}
-\;\underbrace{-\; \frac{\hat p^4}{8 c^2}}_{\text{mass--velocity}}
-\;+\; \underbrace{\frac{1}{8 c^2} \nabla^2 V}_{\text{Darwin}}
-\;+\; \underbrace{\frac{1}{4 c^2}\,
+\quad-\quad \underbrace{\frac{\hat p^4}{8 c^2}}_{\text{mass--velocity}}
+\quad+\quad \underbrace{\frac{1}{8 c^2} \nabla^2 V}_{\text{Darwin}}
+\quad+\quad \underbrace{\frac{1}{4 c^2}\,
 \bm\sigma \cdot \big(\nabla V \times \hat{\mathbf p}\big)}_{\text{spin--orbit}} .
 \label{eq:pauli}
 \end{equation}
@@ -44,7 +44,9 @@ Lowers high-kinetic-energy ($s$) states.
 (finite at the nucleus) feel the $\nabla^2 V \propto \delta(\rr)$ of a
 Coulomb potential strongly.
 \item \textbf{Spin--orbit}: in the electron's rest frame, the electric field
-$-\nabla V$ of the nucleus appears partly as a magnetic field
+of the nucleus, $\mathbf E = +\nabla V$ (the electron's charge is $-1$, so
+its potential energy $V$ is minus the electrostatic potential), appears
+partly as a magnetic field
 $\mathbf B' \approx -(\mathbf v \times \mathbf E)/c$ (in our Gaussian-based
 atomic units; in SI units the denominator is $c^2$) that acts on the spin
 moment (a factor $\tfrac12$ from Thomas precession is included in
@@ -79,10 +81,12 @@ number becomes the total angular momentum $j = \ell \pm \tfrac12$, since
 \end{cases}
 \label{eq:ls_eigen}
 \end{equation}
-For a $d$ shell ($\ell=2$): the $j = 5/2$ level rises by $+\xi$ and
-$j = 3/2$ falls by $-\tfrac32 \xi$, where $\xi = \tfrac{1}{2c^2}\braket{
-r^{-1}\, \dd V/\dd r}$; the splitting is $\tfrac52 \xi \approx 1.5$\,eV in
-the gold \emph{atom}, i.e.\ $\xi \approx 0.6$\,eV.
+For a $d$ shell ($\ell=2$): the $j = 5/2$ level shifts by $+\zeta_d$ and
+the $j = 3/2$ level by $-\tfrac32 \zeta_d$, where $\zeta_d = \tfrac{1}{2c^2}\braket{
+r^{-1}\, \dd V/\dd r}$; the splitting is $\tfrac52 \zeta_d \approx 1.5$\,eV in
+the gold \emph{atom}, i.e.\ $\zeta_d \approx 0.6$\,eV. (We write $\zeta_d$,
+the usual atomic-physics symbol for the spin--orbit constant, to keep
+$\xi$ free for parity eigenvalues later in this chapter.)
 
 \paragraph{What the crystal does to this picture.} In the solid the atom
 sits in a cubic environment, and $j$ is no longer a good quantum number. At
@@ -95,20 +99,20 @@ the $e_g$ doublet (four states with spin) stays together. So at $\Gamma$
 you should find \textbf{three} $d$ levels with degeneracies
 $\mathbf{4, 2, 4}$ (labels $\Gamma_8^+, \Gamma_7^+, \Gamma_8^+$), not the
 $4+6$ pattern of the free atom. A ten-line model reproduces the pattern:
-diagonalize the $10\times10$ matrix $\Delta\,\hat P_{e_g} + \xi\,\mathbf
+diagonalize the $10\times10$ matrix $\Delta\,\hat P_{e_g} + \zeta_d\,\mathbf
 L\cdot\mathbf S$ with the matrices of Section~\ref{sec:lsmatrix}, where
 $\hat P_{e_g}$ projects on the two $e_g$ orbitals (in the real-harmonic
 order of Table~\ref{tab:realylm}, $\mu = 0$ and $\mu = 2$, for both
-spins). For $\Delta = 2\xi$ the eigenvalues are exactly $-\xi$ (4-fold),
-$+\xi$ (2-fold), $+2.5\,\xi$ (4-fold). For gold the reference calculation
+spins). For $\Delta = 2\zeta_d$ the eigenvalues are exactly $-\zeta_d$ (4-fold),
+$+\zeta_d$ (2-fold), $+2.5\,\zeta_d$ (4-fold). For gold the reference calculation
 of Chapter~\ref{ch:verify} (LDA) gives levels at $-5.45$, $-4.24$ and
 $-3.02$\,eV relative to $E_F$, which the model reproduces to within $0.02$\,eV
-with $\xi = 0.62$\,eV and $\Delta = 1.54$\,eV --- the latter being
+with $\zeta_d = 0.62$\,eV and $\Delta = 1.54$\,eV --- the latter being
 precisely the $t_{2g}$--$e_g$ splitting found with SOC switched off.
 Angle-resolved photoemission places the three levels at $-5.9$ to
-$-6.0$, $-4.5$ to $-4.7$ and $-3.6$ to $-3.7$\,eV (three independent
-measurements, collected in Table~\ref{tab:dbandexp}): the same pattern,
-$0.5$--$0.7$\,eV deeper (a known shortcoming of LDA and GGA for the $d$
+$-6.0$, $-4.5$ to $-4.7$ and $-3.6$ to $-3.7$\,eV (the spread reflects different
+measurements; Table~\ref{tab:dbandexp} lists representative values): the same pattern,
+$0.3$--$0.7$\,eV deeper (a known shortcoming of LDA and GGA for the $d$
 bands of noble metals).
 
 \section{Relativity through the pseudopotential}
@@ -151,7 +155,7 @@ $\Delta V^{\mathrm{SO}}_\ell$, both with the same analytic projectors
 scalar-relativistic reference calculation --- a one-line experiment that
 isolates the SOC physics in your band plots.
 
-\section{Matrix elements of $\mathbf{L}\cdot\mathbf{S}$}
+\section{Matrix elements of \texorpdfstring{$\mathbf{L}\cdot\mathbf{S}$}{L·S}}
 \label{sec:lsmatrix}
 
 You need $(\mathbf L\cdot\mathbf S)$ in the basis
@@ -270,7 +274,10 @@ one at $-\kk$ whose coefficients are
 The Hamiltonian commutes with $\Theta$ whenever nothing in it singles out a
 direction of spin or of circulation: kinetic energy and real local
 potentials obviously qualify, and so does $\mathbf L\cdot\mathbf S$ (both
-factors change sign). An exchange field $\mathbf B_{\mathrm{xc}}\cdot\bm\sigma$
+factors change sign; this also needs the orbital part
+$\sum_m\ket{\beta_{i\ell m}}\bra{\beta_{j\ell m}}$ to be a real operator,
+which it is for real radial functions, real $h^\ell_{ij}$ and real
+spherical harmonics). An exchange field $\mathbf B_{\mathrm{xc}}\cdot\bm\sigma$
 does not. For non-magnetic gold, $[\Ha,\Theta]=0$, with two consequences.
 \begin{itemize}[leftmargin=2em]
 \item \textbf{Kramers theorem.} Every state at $\kk$ has a partner of the
@@ -389,16 +396,18 @@ each of the eight TRIM:
 \qquad
 \Theta(\Theta c) = -c ,
 \end{equation}
-to rounding error. The first fails if the projector phases
-$(-\ii)^\ell Y_{\ell m}$ or the structure factors are wrong (and it
-requires the atom at the origin, as we have it). The second fails if any
+to rounding error. The first fails if the angular parts $Y_{\ell m}(\hat\qq)$
+of the projectors or the structure factors are wrong (and it requires the atom
+at the origin, as we have it); the common phase $(-\ii)^\ell$ of
+Eq.~\eqref{eq:betaG} cancels in $\ket{\beta}h\bra{\beta}$, so this test cannot see
+it --- and nothing else depends on it either. The second fails if any
 term breaks time reversal --- a stray $\mathbf B_{\mathrm{xc}}$, or an
 $\mathbf L\cdot\mathbf S$ block whose orbital matrices are not purely
-imaginary in the real-harmonic basis. (Neither test can detect a
-\emph{consistent} relabeling of the harmonics or a sign change of the
-spin-flip blocks, which are unitary transformations of a correct
-Hamiltonian; the eigenvalue checks of Section~\ref{sec:lsmatrix} and the
-degeneracy pattern at $\Gamma$ cover those.)
+imaginary in the real-harmonic basis. (Neither test can detect an error that preserves both symmetries --- for
+example real harmonics ordered differently in the $\mathbf L\cdot\mathbf S$
+blocks than in the projectors, or a wrong overall sign of $k^\ell_{ij}$; the
+checks of Section~\ref{sec:lsmatrix} and the degeneracy pattern and level order
+at $\Gamma$ catch those.)
 
 \paragraph{Parity as a band label.} Because $\hat P$ maps a TRIM to itself
 and commutes with $\Ha$, the eigenstates there can be chosen as
@@ -422,7 +431,7 @@ these signs together.
 
 \begin{keybox}{What to expect in the gold band structure}
 Without SOC (set $k^\ell = 0$): five scalar-relativistic $d$ bands
-$\sim 1.7$--$7.5$\,eV below $E_F$, crossed by the broad $6s$ band. With SOC on:
+$\sim 1.7$--$7$\,eV below $E_F$, crossed by the broad $6s$ band. With SOC on:
 at $\Gamma$ the $d$ manifold forms three levels with degeneracies $4, 2, 4$
 (the $t_{2g}$-derived quartet and doublet, split by roughly
 $1.2$--$1.5$\,eV, and the $e_g$-derived quartet above); degeneracies along $\Gamma$--$X$ and
@@ -432,9 +441,9 @@ agreement, from a code you wrote yourself, is the payoff of this whole
 project. Figure~\ref{fig:bands} shows what it should look like.
 \end{keybox}
 
-\begin{figure}[H]
+\begin{figure}[tbp]
 \centering
-\pgfplotsset{bandplot/.style={width=0.52\textwidth, height=0.62\textwidth,
+\pgfplotsset{bandplot/.style={width=0.505\textwidth, height=0.62\textwidth,
   xmin=0, xmax=3.37024, ymin=-11, ymax=8,
   xtick={0,0.81529,1.22294,1.79943,2.5055,3.37024},
   xticklabels={$\Gamma$,$X$,$W$,$L$,$\Gamma$,$K$},
@@ -457,7 +466,7 @@ project. Figure~\ref{fig:bands} shows what it should look like.
 implementation of Chapter~\ref{ch:verify} (HGH $q{=}11$ pseudopotential,
 LDA, experimental lattice constant, $E_{\mathrm{cut}}=40$\,Ha). Left:
 $k^\ell = 0$. Right: full spin--orbit coupling. The flat $d$ bands lie
-between $-7.6$ and $-1$\,eV, crossed by the steep $sp$ band, which is the
+between about $-7$ and $-1$\,eV, crossed by the steep $sp$ band, which is the
 only band cutting the Fermi level. SOC lifts degeneracies throughout the
 $d$ complex --- at $\Gamma$ the threefold level at $-4.8$\,eV splits into
 $-5.45$ (quartet) and $-4.24$\,eV (doublet) --- and separates the sixth

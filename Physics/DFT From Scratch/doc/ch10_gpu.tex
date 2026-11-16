@@ -16,11 +16,18 @@ differentiate functions, and it can compile them. If you can write NumPy
 you can write JAX (\texttt{import jax.numpy as jnp} and use \texttt{jnp}
 where you would use \texttt{np}), provided you respect a few rules that
 differ from NumPy. The complete list of what this project uses:
-\begin{center}\small
-\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.27\textwidth}p{0.68\textwidth}@{}}
+{\small
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.27\textwidth}p{0.68\textwidth}@{}}
 \toprule
 JAX feature & What it does, and where you use it\\
 \midrule
+\endfirsthead
+\toprule
+JAX feature & What it does, and where you use it (continued)\\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
 \texttt{jax.config.update(} \texttt{"jax\_enable\_x64", True)} & Must be the first
 statement of the program. Without it JAX silently computes everything in
 single precision and none of the reference numbers can be reproduced.\\
@@ -41,8 +48,12 @@ $\GG = 0$ coefficient. Use \texttt{.add} (padded coefficients are zero, so
 they add nothing).\\
 \texttt{jnp.where(cond, a, b)} & Replaces \texttt{if} on array values
 (masks, thresholds, soft locking). Both branches are evaluated, so make
-both finite: write \texttt{1/jnp.where(s > tau, s, 1.0)}, never
-\texttt{jnp.where(s > tau, 1/s, 0)} with a zero in \texttt{s}.\\
+both finite: for ``$1/s$ where $s > \tau$, else $0$'' write
+\texttt{jnp.where(s > tau, 1/jnp.where(s > tau, s, 1.0), 0.0)} --- the inner
+\texttt{where} only makes the discarded branch finite, the outer one still
+supplies the zeros (dropping it gives $1$, not $0$, below the threshold:
+in Algorithm~\ref{alg:ortho} that would keep dependent directions). Never
+write \texttt{jnp.where(s > tau, 1/s, 0.0)} with a zero in \texttt{s}.\\
 \texttt{jax.jit(f)} & Compiles \texttt{f} for fixed array shapes and
 dtypes. Inside, Python \texttt{if}/\texttt{while} may not depend on array
 \emph{values}; loops with a fixed count are simply unrolled.\\
@@ -57,10 +68,8 @@ meshes).\\
 from the XC energy density (Chapter~\ref{ch:xc}): \texttt{grad} of
 $f(n,\varsigma)$ with respect to each argument, then \texttt{vmap} over
 grid points.\\
-\bottomrule
-\end{tabular}
-\end{center}
-Three habits prevent most JAX-specific trouble. First, do all
+\end{longtable}}
+\noindent Three habits prevent most JAX-specific trouble. First, do all
 geometry-time setup (the integer bookkeeping of Algorithm~\ref{alg:basis},
 projector tables, Ewald) in ordinary NumPy and convert the finished arrays
 with \texttt{jnp.array}; only the numerical kernels need to be JAX.
@@ -127,8 +136,9 @@ The entire program reduces to seven device kernels; everything else is glue.
 \item \textbf{Batched zero-pad / gather} between sphere and FFT box.
 \item \textbf{Batched 3D FFT / IFFT} over the $[N_k \times N_b \times 2]$
 batch. In JAX, \texttt{jnp.fft.fftn} with \texttt{axes=(-3,-2,-1)} transforms
-only the last three axes of a 4-D array and is therefore already batched
-(without \texttt{axes=} it would transform all four axes); sizes with small prime factors keep cuFFT on fast paths.
+only the last three axes of a batched array such as
+$[N_k, N_b, 2, N_1, N_2, N_3]$ and is therefore already batched (without
+\texttt{axes=} it would transform every axis); sizes with small prime factors keep cuFFT on fast paths.
 \item \textbf{Elementwise field kernels}: kinetic multiply, local-potential
 multiply, XC evaluation, Kerker filter, preconditioner, smearing functions.
 XLA fuses chains of these into single kernels automatically.
@@ -206,14 +216,17 @@ of Chapter~\ref{ch:algorithms} scale.
 \item \textbf{Autodiff opportunities}: XC potentials via \texttt{grad} of the
 energy density (Ch.~\ref{ch:xc}); later, forces and stress via
 differentiating the total energy with respect to atomic positions and
-strain --- the Hellmann--Feynman theorem emerges automatically. Design the
+strain --- the Hellmann--Feynman theorem emerges automatically, provided
+you differentiate the energy expression at \emph{fixed}, converged
+wavefunctions and occupations (differentiating through a truncated SCF
+loop gives something else). Design the
 energy as a pure function of (parameters, density, wavefunctions) from day
 one.
 \end{itemize}
 
 \section{Memory budget (sanity check)}
 
-Full $12^3$ MP mesh, $N_b = 24$, $N_G^{\max} \approx 1500$ ($E_{\mathrm{cut}}
+Full $\Gamma$-centered $12^3$ mesh, $N_b = 24$, $N_G^{\max} \approx 1500$ ($E_{\mathrm{cut}}
 = 40$\,Ha; $\approx 2500$ at $60$\,Ha), complex64:
 wavefunctions $1728 \times 24 \times 2 \times 1500 \times 8\,\mathrm{B}
 \approx 1.0$\,GB. LOBPCG holds six such arrays ($X, W, P$ and their images

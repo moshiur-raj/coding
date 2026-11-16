@@ -38,7 +38,8 @@ systems with spin--orbit coupling one of them is a single bit
 $\nu_0 \in \{0, 1\}$.
 \begin{itemize}[leftmargin=2em]
 \item $\nu_0 = 0$: the bands can be deformed into those of isolated atoms
-pulled far apart. Nothing special.
+pulled far apart --- provided the weaker invariants introduced in
+Section~\ref{sec:z2def} vanish too. Nothing special.
 \item $\nu_0 = 1$: they cannot. Somewhere in the Brillouin zone the bands
 are ordered ``the wrong way round'' compared with separated atoms --- a
 \textbf{band inversion} --- and no smooth change can undo it.
@@ -179,11 +180,12 @@ would have to pass through each other, and Kramers degeneracy protects the
 crossings at the ends. The parity of the number of partner switches is the
 invariant of the plane:
 \begin{equation}
-z(k_3) = \Big(\text{number of crossings of the line }
-\theta = \theta_{\mathrm{ref}} \text{ by the curves } \theta_j(k_2),\
-0\le k_2\le\tfrac12\Big) \bmod 2 .
+z(k_3) = N_{\times}(k_3) \bmod 2 ,
 \label{eq:zcount}
 \end{equation}
+where $N_{\times}(k_3)$ is the number of times the curves $\theta_j(k_2)$,
+$0\le k_2\le\tfrac12$, cross a horizontal reference line
+$\theta = \theta_{\mathrm{ref}}$.
 If every curve returns to its partner, any horizontal line is crossed an
 even number of times; if partners are switched, some curve must travel
 from one pair to the next and crosses the line an odd number of times.
@@ -243,8 +245,14 @@ minimization of $\varepsilon_{13}-\varepsilon_{12}$ started from the
 smallest values found. Second, it is spin--orbit coupling that keeps the
 two groups apart at such points: with $k^\ell = 0$ the same search finds
 the sixth and seventh bands \emph{touching} (gap below $10^{-4}$\,eV) at
-several points of the zone --- without SOC, bands of different mirror
-symmetry are free to cross. The invariant of gold is a spin--orbit effect not because
+several points of the zone. That is generic, not an accident of gold.
+Without SOC, inversion combined with time reversal makes the Bloch
+Hamiltonian at every $\kk$ a real symmetric matrix (in a suitable basis),
+and two bands of a real symmetric matrix touch as soon as two conditions
+hold, which in a three-dimensional zone happens along whole lines. With
+SOC every band is a Kramers pair (Section~\ref{sec:symmetry}), and two
+pairs touch only if five conditions hold at once, which does not happen
+without fine tuning. The invariant of gold is a spin--orbit effect not because
 SOC changes any parity, but because SOC makes the group of bands well
 defined.
 
@@ -302,7 +310,7 @@ get $\nu_0 = 1$, an even state and an odd state must have swapped places,
 relative to the atomic ordering, at an odd number of TRIM. The formula
 counts band inversions.
 
-\section{Algorithm 1: the invariant from parities}
+\section{Method 1: the invariant from parities}
 \label{sec:goldparity}
 
 Your eigensolver returns \emph{some} orthonormal basis of each degenerate
@@ -398,8 +406,8 @@ every TRIM.
 \item \textbf{At $\Gamma$} the lowest free-electron state is the constant
 plane wave $\GG = 0$, which is even ($s$-like). Odd states are far above
 ($16$\,eV above $E_F$ in the table).
-\item \textbf{At a zone-boundary point} ($X$ or $L$) the two lowest free-
-electron states are degenerate, and the crystal potential splits them
+\item \textbf{At a zone-boundary point} ($X$ or $L$) the two lowest
+free-electron states are degenerate, and the crystal potential splits them
 into the even, $s$-like $\cos$ state and the odd, $p$-like $\sin$ state
 of Eq.~\eqref{eq:nfeparity}. Which one is lower? In the two-plane-wave
 model that was decided by the sign of one Fourier component of the
@@ -409,7 +417,10 @@ even $d$ bands lying just below it; the odd one cannot mix with them and
 stays put. In gold (as in copper and silver) this repulsion is strong
 enough that the odd state ends up \emph{below} the even one at both $X$
 and $L$ --- the inverted order of Section~\ref{sec:nfe}. That is the band
-inversion. At $L$ the odd level sits $1.2$\,eV below $E_F$ and the
+inversion. (``Inverted'' refers to the \emph{order} of the
+two levels within the 12-band group, not to their occupation: at $X$
+the odd level lies $0.7$\,eV \emph{above} $E_F$ and is empty, yet it is
+still below its even partner.) At $L$ the odd level sits $1.2$\,eV below $E_F$ and the
 even one $3.1$\,eV above; the gap between them is the ``$L$ gap''
 through which the necks of gold's Fermi surface pass.
 \end{itemize}
@@ -430,7 +441,7 @@ that surface band must exist and must be spin--momentum locked. (To see
 the surface state itself you would need a slab calculation --- a natural
 sequel once the bulk code works.)
 
-\section{Algorithm 2: the invariant from Wilson loops}
+\section{Method 2: the invariant from Wilson loops}
 \label{sec:wilson}
 
 The parity shortcut exists only for inversion-symmetric crystals. The
@@ -535,7 +546,7 @@ parities.
 Now look at Fig.~\ref{fig:wcc} critically, because gold is a \emph{hard}
 case for this method and the figure shows it. The outer curves do not
 move smoothly: near $k_2 \approx 0.26$ and $0.43$ (left) and
-$k_2\approx 0.14$ and $0.37$ (right) they appear to jump. True charge
+$k_2\approx 0.14$ and $0.36$ (right) they appear to jump. True charge
 centers are continuous functions of $k_2$ as long as the direct gap is
 open; the apparent jumps occur where the loop passes close to the points
 at which the gap nearly closes (Section~\ref{sec:directgap}: $0.02$\,eV).
@@ -567,13 +578,13 @@ degenerate with its mirror image, so the reference line of
 Algorithm~\ref{alg:count} may hop between the two; each hop passes an even
 number of centers and does not affect $z$.)
 
-\begin{figure}[H]
+\begin{figure}[tbp]
 \centering
 \pgfplotsset{wccplot/.style={width=0.5\textwidth, height=0.42\textwidth,
-  xmin=0, xmax=0.5, ymin=-1, ymax=1, xlabel={$k_2$},
-  ytick={-1,-0.5,0,0.5,1},
+  xmin=-0.012, xmax=0.512, ymin=-1.07, ymax=1.07, xlabel={$k_2$},
+  xtick={0,0.1,0.2,0.3,0.4,0.5}, ytick={-1,-0.5,0,0.5,1},
   tick label style={font=\small}, label style={font=\small},
-  title style={font=\small}}}
+  title style={font=\small, text height=2ex, text depth=0.6ex}}}
 \begin{tikzpicture}
 \begin{axis}[wccplot, ylabel={$\theta/\pi$}, title={$k_3 = 0$:\ \ $z = 1$}]
 \addplot[only marks, mark=*, mark size=0.6pt, red!70!black] table[x index=0,y index=1] {figdata/wcc_k3_0.dat};

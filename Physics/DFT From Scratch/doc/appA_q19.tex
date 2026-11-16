@@ -11,7 +11,11 @@ coupling matrices are $3\times3$. There are then $3 + 3\cdot3 + 2\cdot5 =
 $\sim 30$ spinor bands; the lowest eight (four Kramers pairs: $5s$ and
 $5p$) form narrow bands far below the $d$ bands, which shifts every band
 index of Chapter~\ref{ch:topology} up by eight ($N = 10$ pairs below the
-direct gap). Because the projector radii are much smaller, the cutoff must
+direct gap). The three $5p$ pairs are odd at every TRIM and the $5s$ pair is
+even, so with $q = 19$ \emph{every} $\delta_i$ of Eq.~\eqref{eq:fukane}
+changes sign ($\delta_\Gamma = -1$, $\delta_X = \delta_L = +1$); the
+products over eight and over four TRIM, $\nu_0$ and the weak indices, do
+not change. Because the projector radii are much smaller, the cutoff must
 be considerably higher than for $q = 11$: converge it explicitly, starting
 from $E_{\mathrm{cut}}\approx 80$\,Ha.
 
@@ -20,7 +24,7 @@ as Table~\ref{tab:auhgh} (its entries \texttt{Au GTH-PADE-q19} and
 \texttt{Au GTH-PBE-q19}). Each block lists the upper triangle of a
 symmetric matrix.
 
-\begin{table}[h]
+\begin{table}[H]
 \centering\small
 \begin{tabular}{@{}llrrr@{}}
 \toprule
@@ -51,7 +55,7 @@ atomic units).}
 \label{tab:q19lda}
 \end{table}
 
-\begin{table}[h]
+\begin{table}[H]
 \centering\small
 \begin{tabular}{@{}llrrr@{}}
 \toprule
@@ -104,7 +108,10 @@ PBE & $q=11$ & $-0.21240$ & $-0.28794$ & $-0.23187$ & $-0.04235$ & $-0.02404$\\
 \end{center}
 (Eigenvalues in Ha of the neutral, spherical, non-spin-polarized
 pseudo-atom, $5d^{10}6s^1$ with $6p$ empty; radial grid $h = 0.02$,
-$r_{\max} = 16$\,Bohr.) The 19-electron atoms have in addition the
+$r_{\max} = 16$\,Bohr. The diffuse, unoccupied $6p$ levels feel the size of
+the radial box: with $r_{\max} = 24$\,Bohr, as in Stage~1, they lie
+$0.05$--$0.2$\,mHa lower, at $-0.0486$ and $-0.0278$\,Ha; the occupied
+levels do not change.) The 19-electron atoms have in addition the
 semicore levels $5s$ at $-3.988$ ($-3.973$)\,Ha and $5p_{1/2}$,
 $5p_{3/2}$ at $-2.655$, $-2.042$ ($-2.639$, $-2.034$)\,Ha for LDA (PBE):
 a spin--orbit splitting of the $5p$ shell of $16.7$ ($16.5$)\,eV. What

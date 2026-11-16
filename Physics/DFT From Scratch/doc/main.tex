@@ -4,11 +4,16 @@
 \usepackage{amsmath,amssymb,amsthm,mathtools,bm}
 \usepackage{braket}
 \usepackage{microtype}
-\usepackage[hidelinks]{hyperref}
+\usepackage[hidelinks,hypertexnames=false]{hyperref}
 \usepackage{algorithm}
 \usepackage{algpseudocode}
+% \LState{...}: a pseudocode statement whose wrapped lines keep the statement's indentation
+\makeatletter
+\algnewcommand{\LState}[1]{\State\parbox[t]{\dimexpr\linewidth-\ALG@tlm\relax}{\raggedright\strut#1\strut}}
+\makeatother
 \usepackage{booktabs}
 \usepackage{array}
+\usepackage{longtable}
 \usepackage{enumitem}
 \usepackage[most]{tcolorbox}
 \usepackage{xcolor}
@@ -49,6 +54,8 @@
 \newcommand{\pdv}[2]{\frac{\partial #1}{\partial #2}}
 
 \allowdisplaybreaks
+\makeatletter\setlength{\@fptop}{0pt}\makeatother % float pages start at the top
+\hyphenation{pseudo-po-ten-tial pseudo-po-ten-tials}
 \setlength{\parskip}{0.35em}
 
 \title{\textbf{Density Functional Theory from Scratch}\\[0.6em]
@@ -62,7 +69,7 @@ topology, its conductivity and its colour\\[0.6em]
 
 \begin{document}
 \maketitle
-\tableofcontents
+{\setlength{\parskip}{0pt}\tableofcontents}
 
 \input{ch1_intro.tex}
 \input{ch2_manybody.tex}

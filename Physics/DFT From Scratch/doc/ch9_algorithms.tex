@@ -8,7 +8,7 @@ pseudocode. Notation: at each $\kk$, $H_{\kk}$ is the (matrix-free)
 Hamiltonian on spinor coefficient vectors of length $2N_G$; we seek the
 lowest $N_b$ eigenpairs.
 
-\section{Setting up a $\kk$-point: the basis}
+\section{Setting up a \texorpdfstring{$\kk$}{k}-point: the basis}
 \label{sec:setup}
 
 Everything at a given $\kk$ is expressed on its own plane-wave sphere.
@@ -24,9 +24,9 @@ Building it is pure integer bookkeeping, done once per geometry.
 \State \textbf{for all} integer triples $\mathbf m$ with $|m_i|\le M_i$:
 $\qq \gets (\kk_{\mathrm{frac}} + \mathbf m)\,B$;\quad keep $\mathbf m$ if
 $\tfrac12|\qq|^2 \le E_{\mathrm{cut}}$
-\State store for each kept plane wave: $\mathbf m$;\ $\qq$;\ $T_{\qq} =
+\LState{store for each kept plane wave: $\mathbf m$;\ $\qq$;\ $T_{\qq} =
 \tfrac12|\qq|^2$;\ FFT-box index
-$\mathrm{idx} = \mathrm{ravel}(m_1 \bmod N_1,\, m_2 \bmod N_2,\, m_3 \bmod N_3)$
+\mbox{$\mathrm{idx} = \mathrm{ravel}(m_1 \bmod N_1,\, m_2 \bmod N_2,\, m_3 \bmod N_3)$}}
 \State projectors $\tilde\beta^{a}_{i\ell m}(\qq)$ from
 Eqs.~\eqref{eq:betaG}, \eqref{eq:hghprojG}, Table~\ref{tab:realylm}
 \Comment{array $[N_{\mathrm{proj}}, N_G]$}
@@ -158,7 +158,7 @@ dependent directions; optionally carry $HV$ along}
 \State $d_j \gets \|V_{:,j}\|$ (set $d_j = 1$ where the column is zero)
 \Comment{column scales}
 \State $G \gets \mathrm{diag}(d)^{-1}\, V^\dagger V\, \mathrm{diag}(d)^{-1}$
-\Comment{small Hermitian matrix with unit diagonal; double precision}
+\Comment{Hermitian, unit diagonal; double precision}
 \State $(\sigma, U) \gets \mathrm{eigh}(G)$
 \Comment{$\sigma_j \ge 0$ measures how independent direction $j$ is}
 \State $T \gets \mathrm{diag}(d)^{-1}\; U\;
@@ -176,14 +176,14 @@ would change array shapes --- but replaced by zero columns, which the
 eigensolver then ignores. There is no failure branch, unlike a Cholesky
 factorization, which simply breaks down on a singular matrix.
 
-\begin{algorithm}[H]
+\begin{algorithm}[tbp]
 \caption{LOBPCG for the lowest $N_b$ spinor bands at one $\kk$
 (all $\kk$ run batched)}
 \label{alg:lobpcg}
 \begin{algorithmic}[1]
-\State $X \gets$ initial block $[2N_G \times N_b]$ (previous SCF
+\LState{$X \gets$ initial block $[2N_G \times N_b]$ (previous SCF
 step's eigenvectors; first step: random complex numbers divided by
-$1 + \tfrac12|\kk{+}\GG|^2$)
+$1 + \tfrac12|\kk{+}\GG|^2$)}
 \State $X \gets$ \Call{Orthonormalize}{$X$, $10^{-12}$}, twice;\quad
 $HX \gets$ \Call{ApplyH}{$X$}
 \State $(\Lambda, Y) \gets \mathrm{eigh}(X^\dagger HX)$;\quad
@@ -204,20 +204,19 @@ $W \gets$ \Call{Orthonormalize}{$W$, $10^{-10}$}
 application per iteration}
 \State $S \gets [X, W, P]$;\quad $A \gets S^\dagger\,[HX, HW, HP]$;\quad
 $A \gets \tfrac12(A + A^\dagger)$ \Comment{$3N_b\times3N_b$, double precision}
-\State $A_{jj} \gets A_{jj} + \Lambda_{\mathrm{big}}$ for every $j$ whose
-column of $S$ is zero \Comment{$\Lambda_{\mathrm{big}} = 10^6$\,Ha: park
-empty directions out of the way}
-\State $(\Theta, Y) \gets \mathrm{eigh}(A)$;\quad
+\LState{$A_{jj} \gets A_{jj} + \Lambda_{\mathrm{big}}$ for every $j$ whose
+column of $S$ is zero \Comment{$\Lambda_{\mathrm{big}} = 10^6$\,Ha}}
+\LState{$(\Theta, Y) \gets \mathrm{eigh}(A)$;\quad
 $\Lambda \gets \Theta_{1..N_b}$;\quad keep the first $N_b$ columns of $Y$,
-split by rows as $(Y_X; Y_W; Y_P)$
+split by rows as $(Y_X; Y_W; Y_P)$}
 \State $P \gets W Y_W + P\, Y_P$;\quad $HP \gets HW\, Y_W + HP\, Y_P$
 \Comment{the step just taken}
 \State $X \gets X Y_X + P$;\quad $HX \gets HX\, Y_X + HP$
 \Comment{new Ritz vectors; no extra $H$ applications}
-\State \textbf{twice:}\ \ $C \gets X^\dagger P$;\ \ $P \gets P - XC$;\ \
+\LState{\textbf{twice:}\ \ $C \gets X^\dagger P$;\ \ $P \gets P - XC$;\ \
 $HP \gets HP - HX\,C$;\ \
 $(P, HP) \gets$ \Call{Orthonormalize}{$P$, $10^{-6}$, $HP$}
-\Comment{$P \perp$ new $X$, orthonormal}
+\Comment{$P \perp$ new $X$, orthonormal}}
 \EndFor
 \State \Return $\Lambda$ (eigenvalues, ascending), $X$ (eigenvectors)
 \end{algorithmic}
@@ -297,8 +296,12 @@ random start, the residuals of the lowest 14 bands fall below
 $10^{-9}$\,Ha in 25--45 iterations; the eigenvalues are converged to
 $10^{-10}$\,Ha well before that (the eigenvalue error is quadratic in the
 residual). The top few bands of the block always converge slowest ---
-which is why $N_b$ should exceed the number of bands you need by a buffer
-of four or more.
+which is why $N_b$ should exceed the number of bands you need by a buffer.
+One rule is used throughout this document: in the SCF,
+$N_b \ge N_{\mathrm{occ}} + 8$, where $N_{\mathrm{occ}}$ counts every band
+that is at least partly occupied somewhere in the zone ($N_{\mathrm{occ}} =
+12$ and hence 20 spinor bands for 11-electron gold); in
+fixed-potential calculations, $N_b = N_{\mathrm{want}} + 6$.
 
 \paragraph{How many iterations?} Inside an SCF loop you do \emph{not} need
 tight convergence: 2--4 LOBPCG iterations per SCF step suffice (after
@@ -429,10 +432,9 @@ extrapolated residual is smallest:
 \end{pmatrix}
 \begin{pmatrix} \bm\gamma \\ \lambda\end{pmatrix}
 = \begin{pmatrix}\mathbf 0\\ 1\end{pmatrix},
-\qquad
-\mathsf B_{mm'} = \braket{R^{(m)} | R^{(m')}},
 \end{equation}
-then update
+where $\mathsf B_{mm'} = \braket{R^{(m)} | R^{(m')}}$ (the inner product
+is specified in Algorithm~\ref{alg:pulay}); then update
 \begin{equation}
 n_{\mathrm{in}}^{(\mathrm{new})}
 = \sum_m \gamma_m\Big[ n_{\mathrm{in}}^{(m)}
@@ -456,7 +458,7 @@ more than $M$ are stored
 \dfrac{4\pi}{G^2}\,\big[R^{(m)}(\GG)\big]^{*} R^{(m')}(\GG)$;\quad
 $\mathsf B \gets \mathsf B/\max_{mm'}|\mathsf B_{mm'}|$
 \State solve the bordered system for $\bm\gamma$ by least squares
-\Comment{it becomes ill-conditioned near convergence}
+\Comment{ill-conditioned near convergence}
 \State \Return $\sum_m \gamma_m\big[n^{(m)}_{\mathrm{in}}(\GG)
 + A\,\tfrac{G^2}{G^2+k_{TF}^2}\,R^{(m)}(\GG)\big]$
 \EndFunction
@@ -492,13 +494,13 @@ $\sim10^{-8}$\,Ha.
 \begin{algorithm}[H]
 \caption{Self-consistent field for spinor plane-wave DFT}
 \begin{algorithmic}[1]
-\State \textbf{Geometry-time setup:} lattice, reciprocal vectors, $\GG$
+\LState{\textbf{Geometry-time setup:} lattice, reciprocal vectors, $\GG$
 spheres and masks per $\kk$, FFT grid and pad/gather indices, structure
 factor, $V_{\mathrm{loc,ion}}(\GG)$, projector arrays
-$\tilde\beta(\kk{+}\GG)$, $D^{\ell}$ blocks (with SOC), Ewald energy
-\State $n_{\mathrm{in}}(\GG) \gets \frac{1}{\Omega}\sum_a Z_{\mathrm{ion}}\,
+$\tilde\beta(\kk{+}\GG)$, $D^{\ell}$ blocks (with SOC), Ewald energy}
+\LState{$n_{\mathrm{in}}(\GG) \gets \frac{1}{\Omega}\sum_a Z_{\mathrm{ion}}\,
 \ee^{-G^2 w^2/2}\,\ee^{-\ii\GG\cdot\RR_a}$ with $w = 1$\,Bohr
-(a Gaussian blob per atom, integrating to $N_e$); $\mathbf m \gets 0$
+(a Gaussian blob per atom, integrating to $N_e$); $\mathbf m \gets 0$}
 \State $X_{\kk} \gets$ random initial blocks (Algorithm~\ref{alg:lobpcg},
 line 1)
 \For{$m = 1, \dots, m_{\max}$}
@@ -506,11 +508,11 @@ line 1)
 $(\vxc, \mathbf B_{\mathrm{xc}}) \gets$ XC$(n_{\mathrm{in}}, \mathbf m, \nabla n_{\mathrm{in}})$
 \State $V_{\mathrm{eff,loc}} \gets V_{\mathrm{loc,ion}} + \vH + \vxc$
 (real-space grid)
-\State \textbf{for all $\kk$ in parallel:} Algorithm~\ref{alg:lobpcg}
+\LState{\textbf{for all $\kk$ in parallel:} Algorithm~\ref{alg:lobpcg}
 started from the current $X_\kk$, with $\epsilon = 0$ and $t_{\max} = 8$ in
 the first pass, $3$ afterwards, on
 $H_{\kk}[V_{\mathrm{eff,loc}}, \mathbf B_{\mathrm{xc}}]$
-$\Rightarrow \varepsilon_{n\kk}, X_{\kk}$
+$\Rightarrow \varepsilon_{n\kk}, X_{\kk}$}
 \State $(\mu, f_{n\kk}, S) \gets$ \Call{Occupy}{$\varepsilon, w, N_e, \sigma$}
 \Comment{Algorithm~\ref{alg:fermi}}
 \State $(n_{\mathrm{out}}, \mathbf m_{\mathrm{out}}) \gets$ density from
@@ -522,9 +524,9 @@ $\|R\|$ and both free energies \Comment{Eqs.~\eqref{eq:resnorm},
 \State $n_{\mathrm{in}} \gets$ \Call{Mix}{$n_{\mathrm{in}}, R$, history}
 \Comment{Algorithm~\ref{alg:pulay}, $M = 8$}
 \EndFor
-\State Keep $n_{\mathrm{in}}$, $V_{\mathrm{eff,loc}}$ and $\mu$; all post-processing
+\LState{Keep $n_{\mathrm{in}}$, $V_{\mathrm{eff,loc}}$ and $\mu$; all post-processing
 (band structure, DOS, parities, Wilson loops) uses
-Section~\ref{sec:nscf}
+Section~\ref{sec:nscf}}
 \end{algorithmic}
 \end{algorithm}
 
@@ -565,9 +567,9 @@ $N_{\mathrm{want}}$;\ $\epsilon$}
 \For{each $\kk$ (batched)}
 \State basis $\gets$ \Call{BuildBasis}{$\kk$, $E_{\mathrm{cut}}$}
 \Comment{same cutoff and FFT grid as the SCF}
-\State run Algorithm~\ref{alg:lobpcg} from a random start with
+\LState{run Algorithm~\ref{alg:lobpcg} from a random start with
 $N_b = N_{\mathrm{want}}+6$ until the lowest $N_{\mathrm{want}}$ residuals
-are below $\epsilon$
+are below $\epsilon$}
 \EndFor
 \State \Return $\varepsilon_{n\kk}$ and coefficients $c^s_{n\kk}(\GG)$ for
 $n \le N_{\mathrm{want}}$
@@ -613,5 +615,6 @@ for $\mu$] $\to$ [$2 N_k N_b$ IFFTs $+$ fused reduction for the density]
 $\to$ [Fourier-space mixing]. Every stage is either elementwise, an FFT
 batch, a GEMM batch, or a small batched \texttt{eigh} --- there is no
 sequential inner structure anywhere except the SCF iteration count itself
-($\sim 20$--$40$ iterations) and the handful of LOBPCG steps inside each.
+(about $10$--$15$ iterations for gold with Kerker--Pulay mixing; $20$--$40$
+is typical of harder systems) and the handful of LOBPCG steps inside each.
 \end{gpubox}

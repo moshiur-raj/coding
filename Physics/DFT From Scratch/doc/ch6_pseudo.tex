@@ -81,7 +81,7 @@ Y_{\ell m}(\hat \rr)$. Its action on a state costs only projections
 $\braket{\beta | \psi}$ --- tall-skinny matrix multiplications, the second
 GPU-native kernel of the code.
 
-\section{HGH pseudopotentials: analytic, relativistic, perfect for from-scratch}
+\section{HGH pseudopotentials: analytic, relativistic, perfect for \mbox{from-scratch}}
 \label{sec:hgh}
 
 For a self-contained implementation you want a pseudopotential defined by a
@@ -98,7 +98,7 @@ polynomial:
 \begin{equation}
 V_{\mathrm{loc}}(r) = -\frac{Z_{\mathrm{ion}}}{r}\,
 \mathrm{erf}\!\left(\frac{r}{\sqrt 2\, r_{\mathrm{loc}}}\right)
-+ \ee^{-\frac{r^2}{2 r_{\mathrm{loc}}^2}}
++ \ee^{-\tilde r^{\,2}/2}
 \Big[C_1 + C_2 \tilde r^{\,2} + C_3 \tilde r^{\,4} + C_4 \tilde r^{\,6}\Big],
 \qquad \tilde r = r/r_{\mathrm{loc}} .
 \label{eq:hghloc}
@@ -107,15 +107,14 @@ Its Fourier transform (what you actually need, Chapter~\ref{ch:hamiltonian})
 is analytic:
 \begin{equation}
 \tilde V_{\mathrm{loc}}(G) =
--\frac{4\pi Z_{\mathrm{ion}}}{G^2}\, \ee^{-\frac{(G r_{\mathrm{loc}})^2}{2}}
-+ (2\pi)^{3/2} r_{\mathrm{loc}}^3\, \ee^{-\frac{(G r_{\mathrm{loc}})^2}{2}}
-\times \big[\text{polynomial in } (G r_{\mathrm{loc}})^2
-\text{ with } C_1..C_4\big],
+-\frac{4\pi Z_{\mathrm{ion}}}{G^2}\, \ee^{-x^2/2}
++ (2\pi)^{3/2} r_{\mathrm{loc}}^3\, \ee^{-x^2/2}\, \mathcal P_C(x),
+\qquad x = G r_{\mathrm{loc}},
 \label{eq:hghlocG}
 \end{equation}
-where, with $x = G r_{\mathrm{loc}}$, the polynomial is
+where $\mathcal P_C$ is the polynomial built from $C_1,\dots,C_4$,
 \begin{equation}
-C_1 + C_2\,(3 - x^2) + C_3\,(15 - 10x^2 + x^4)
+\mathcal P_C(x) = C_1 + C_2\,(3 - x^2) + C_3\,(15 - 10x^2 + x^4)
 + C_4\,(105 - 105x^2 + 21x^4 - x^6).
 \label{eq:hghlocpoly}
 \end{equation}
@@ -231,10 +230,15 @@ h^{p}_{12} = -\tfrac12\sqrt{\tfrac57}\, h^{p}_{22},
 h^{d}_{12} = -\tfrac12\sqrt{\tfrac79}\, h^{d}_{22},
 \label{eq:hghoffdiag}
 \end{equation}
-and likewise for $k_{12}$. Later parameter sets in the same family (the PBE
-set below) follow a different convention --- there the ratios are exactly
-twice these (check: $-2.25067966/2.90561495 = -\sqrt{3/5}$). To make this
-impossible to get wrong,
+and likewise for $k_{12}$. In the PBE set below (Krack 2005) the ratios
+are exactly twice these (check: $-2.25067966/2.90561495 = -\sqrt{3/5}$).
+This is \emph{not} a different normalization of the projectors --- the
+$p_{i\ell}$ are the same functions of Eq.~\eqref{eq:hghproj} in both sets
+--- it only reflects how the off-diagonal elements were tied to the
+diagonal ones when the parameters were fitted. The tabulated matrix
+\emph{is} the operator: do not ``correct'' the PBE off-diagonals to the
+HGH rule above (CP2K, the source of the table, uses them exactly as
+listed). To make this impossible to get wrong,
 Table~\ref{tab:auhgh} lists \emph{every} matrix element explicitly: use
 the tabulated matrices verbatim and derive nothing. Forgetting the
 off-diagonal elements is the classic HGH bug: the code runs and gives
@@ -248,17 +252,22 @@ choices of valence: the 11-electron potential ($5d^{10}6s^1$, cheaper, fine for 
 near $E_F$) and the 19-electron semicore potential
 ($5s^2 5p^6 5d^{10} 6s^1$, stiffer, $E_{\mathrm{cut}}$ higher, better lattice
 constant; parameters in Appendix~\ref{app:q19}, where a third $s$ and $p$
-projector and a second local coefficient appear). Start with $q=11$;
+projector and, for LDA, a second local coefficient appear). Start with $q=11$;
 graduate to $q=19$ when validating energetics.
 HGH parameters exist in matched LDA and PBE flavors --- use the one matching
-your XC functional.
+your XC functional. (The ``LDA'' potentials were generated with the
+Pad\'e form of the LDA of Goedecker, Teter and Hutter, hence the name
+\texttt{GTH-PADE}. It fits the same electron-gas data as PW92 and differs
+from it by less than $0.5$\,mHa in $\varepsilon_{\mathrm{xc}}$ for
+$0.5 \le r_s \le 6$, so using PW92 with these parameters, as this document
+and its reference numbers do, is consistent.)
 
-\begin{table}[h]
+\begin{table}[htbp]
 \centering\small
 \begin{tabular}{@{}llrrr@{}}
 \toprule
-\multicolumn{5}{@{}l}{\textbf{LDA} (HGH 1998; entry \texttt{Au GTH-PADE-q11}):\quad
-$r_{\mathrm{loc}} = 0.59000000$,\ \ $C_1 = 11.60442790$}\\
+\multicolumn{5}{@{}l}{\textbf{LDA} (HGH 1998; entry \texttt{Au GTH-PADE-q11})}\\
+\multicolumn{5}{@{}l}{\quad$r_{\mathrm{loc}} = 0.59000000$,\ \ $C_1 = 11.60442790$}\\
 \midrule
 channel & & \multicolumn{1}{c}{$11$} & \multicolumn{1}{c}{$12 = 21$} & \multicolumn{1}{c}{$22$}\\
 \midrule
@@ -270,8 +279,8 @@ $p$:\ $r_p = 0.63061306$ & $h_{ij}$ & $0.39485270$ & $-0.86959213$ & $2.05783056
 $d$:\ $r_d = 0.44070643$ & $h_{ij}$ & $-4.71906966$ & $0.72777081$ & $-1.65042907$\\
  & $k_{ij}$ & $0.14848354$ & $0.07473921$ & $-0.16949260$\\
 \midrule
-\multicolumn{5}{@{}l}{\textbf{PBE} (Krack 2005; $k_{ij}$ from the 2023 CP2K SOC database; entry \texttt{Au GTH-PBE-q11}):\quad
-$r_{\mathrm{loc}} = 0.59000000$,\ \ $C_1 = 10.51717881$}\\
+\multicolumn{5}{@{}l}{\textbf{PBE} (Krack 2005; $k_{ij}$ from the 2023 CP2K SOC database;}\\
+\multicolumn{5}{@{}l}{\quad entry \texttt{Au GTH-PBE-q11}):\ \ $r_{\mathrm{loc}} = 0.59000000$,\ \ $C_1 = 10.51717881$}\\
 \midrule
 $s$:\ $r_s = 0.54384733$ & $h_{ij}$ & $5.78681103$ & $-2.25067966$ & $2.90561495$\\
 \addlinespace
@@ -285,7 +294,9 @@ $d$:\ $r_d = 0.43730922$ & $h_{ij}$ & $-7.40328124$ & $3.01019307$ & $-3.4132381
 \caption{HGH/GTH pseudopotential parameters for Au with
 $Z_{\mathrm{ion}} = 11$ (Hartree atomic units), transcribed with all
 digits from the \texttt{GTH\_SOC\_POTENTIALS} database distributed with the
-CP2K code (a copy is in \texttt{verification/reference\_data/}). Columns
+CP2K code (file \texttt{data/GTH\_SOC\_POTENTIALS} of the CP2K source
+repository on GitHub; a copy is in \texttt{verification/reference\_data/}
+--- check it against the upstream file). Columns
 $11$, $12$, $22$ are the elements of the symmetric $2\times2$ matrices
 $h^\ell_{ij}$ and $k^\ell_{ij}$. $C_2 = C_3 = C_4 = 0$, there is no third
 projector, and the $s$ channel has no $k$ (no spin--orbit coupling for
@@ -304,7 +315,8 @@ substitute: a \emph{local} part $\sum_a V_{\mathrm{loc}}(|\rr - \RR_a|)$
 Chapter~\ref{ch:hamiltonian}) plus the \emph{nonlocal} separable operator
 \eqref{eq:separable}--\eqref{eq:hghso}. The electron count $N_e$ becomes the
 number of \emph{valence} electrons ($11$ or $19$ for Au). The ion--ion energy
-$E_{NN}$ uses $Z_{\mathrm{ion}} = N_e$ point charges (Ewald,
+$E_{NN}$ uses point charges $Z_{\mathrm{ion}} = 11$ (or $19$) per atom
+(equal to $N_e$ here, because there is one atom per cell) (Ewald,
 Section~\ref{sec:ewald}). All theorems survive unchanged; the KS equations
 merely acquire a nonlocal term.
 \end{keybox}
@@ -313,10 +325,15 @@ merely acquire a nonlocal term.
 Projectors in reciprocal space factorize into radial, angular and
 structure-phase parts, Eq.~\eqref{eq:betaG}; build them once per geometry as a dense
 array $[N_k, N_{\mathrm{proj}}, N_G^{\max}]$. The nonlocal action on all
-bands is then two batched GEMMs:
-$P = B^{\dagger} C$ (shape $[N_k, N_{\mathrm{proj}}, N_{\mathrm{bands}}
-\times 2]$) followed by $C \mathrel{+}= B\, (H P)$ where $H$ is the small
-block-diagonal $h/k$ coupling matrix. Real spherical harmonics up to
+bands is then two batched GEMMs around a tiny matrix:
+$P = B^{\dagger} C$ (shape $[N_k, N_{\mathrm{proj}}, 2N_{\mathrm{bands}}]$;
+the projectors do not depend on spin, so the spin axis rides along with
+the bands); regroup $P$ so that its rows run over (projector, spin) pairs
+and multiply by the small coupling matrix $D$ (Section~\ref{sec:lsmatrix}
+and Eq.~\eqref{eq:vnl_action}: $h$ on the spin-diagonal blocks,
+$k\,\mathbf L\cdot\mathbf S$ coupling $\uparrow$ and $\downarrow$); regroup
+back and accumulate $B\,(DP)$ into the output array that holds $\hat H C$
+(not into $C$ itself). Real spherical harmonics up to
 $\ell = 2$ ($s,p,d$: 9 functions) are short closed-form polynomials of the
 unit vector components --- write them explicitly, no recursion needed
 (Table~\ref{tab:realylm}). At $\kk+\GG = 0$ the direction is undefined;
@@ -325,7 +342,7 @@ since $\tilde p_{i\ell}(0) = 0$ for $\ell > 0$ any finite value will do
 by $|\qq|$, or a NaN at $\Gamma$ will poison the whole array).
 \end{gpubox}
 
-\begin{table}[h]
+\begin{table}[htbp]
 \centering
 \begin{tabular}{@{}cll@{}}
 \toprule

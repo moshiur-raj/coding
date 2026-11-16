@@ -92,7 +92,8 @@ material) such that
 E_v[n] \equiv F_{\mathrm{HK}}[n] + \int \vext(\rr)\, n(\rr)\, \dd\rr
 \end{equation}
 satisfies $E_v[n] \geq E_0$ for every admissible density with $\int n = N$,
-with equality if and only if $n = n_0$.
+with equality if and only if $n = n_0$ (for a non-degenerate ground state;
+with degeneracy, equality holds for any ground-state density).
 \end{theorem}
 
 \begin{proof}
@@ -204,7 +205,11 @@ $\veff$ is found by solving the one-body eigenproblem. Minimizing
 $E$ with respect to the orbitals themselves, subject to orthonormality
 $\braket{\psi_i|\psi_j} = \delta_{ij}$ (Lagrange multipliers
 $\varepsilon_{ij}$, diagonalized to $\varepsilon_i$), gives the same result
-directly: varying $\psi_i^*$,
+directly. A complex function has two independent real degrees of freedom,
+its real and imaginary parts; it is equivalent, and shorter, to treat
+$\psi_i$ and $\psi_i^*$ as the two independent variables and set the
+derivative with respect to $\psi_i^*$ to zero (the derivative with respect
+to $\psi_i$ gives the complex-conjugate equation). Varying $\psi_i^*$,
 \begin{equation}
 \fdv{}{\psi_i^*(\rr)}\Big[E - \textstyle\sum_{jk}
 \varepsilon_{jk}\big(\braket{\psi_j|\psi_k} - \delta_{jk}\big)\Big] = 0
@@ -213,6 +218,16 @@ directly: varying $\psi_i^*$,
 = \varepsilon_i\, \psi_i(\rr).
 \label{eq:kseq}
 \end{equation}
+(Strictly, varying $\psi_i^*$ gives
+$f_i\,\hat h\,\psi_i = \sum_k \varepsilon_{ik}\psi_k$ with
+$\hat h = -\tfrac12\nabla^2+\veff$, because $\psi_i$ enters $E$ with weight
+$f_i$. Project onto $\psi_j$: $f_i\braket{\psi_j|\hat h|\psi_i} =
+\varepsilon_{ij}$. The multiplier matrix can be taken Hermitian, and so is
+$\hat h$; combining the $(i,j)$ and $(j,i)$ equations gives
+$(f_i - f_j)\braket{\psi_j|\hat h|\psi_i} = 0$. So $\hat h$ has no matrix
+elements between orbitals of different occupation, and within a set of
+equally occupied orbitals a unitary rotation --- which changes neither $n$
+nor $E$ --- diagonalizes it. Hence the form above.)
 Equations \eqref{eq:ksdensity}, \eqref{eq:veff} and \eqref{eq:kseq} are the
 \textbf{Kohn--Sham equations}. Note the nonlinearity: $\veff$ depends on $n$,
 which depends on the $\psi_i$, which depend on $\veff$. The equations must be
@@ -251,10 +266,14 @@ a disagreement pinpoints a bookkeeping bug.
 \begin{keybox}{Interpretation warnings}
 The Kohn--Sham orbitals and eigenvalues belong to the \emph{fictitious}
 system. Their only rigorous roles are to build $n(\rr)$ and $T_s$.
-Nevertheless, the KS band structure of metals like gold is an excellent
-approximation to the measured quasiparticle bands (photoemission), and
-(for the exact functional) the highest occupied eigenvalue equals the exact
-chemical potential. Band
+Nevertheless, the KS band structure of metals like gold is a good
+approximation to the measured quasiparticle bands (photoemission; for gold
+the $d$ bands come out several tenths of an eV too shallow --- $0.3$--$0.9$\,eV
+with the functionals and pseudopotential of this document,
+Chapters~\ref{ch:soc} and~\ref{ch:colour}), and
+(for the exact functional) the highest occupied eigenvalue is exact: it
+equals minus the ionization energy of a finite system, and the Fermi level
+of a metal. Band
 \emph{gaps} of semiconductors are systematically underestimated --- a famous
 limitation that does not affect our metallic target.
 \end{keybox}

@@ -50,6 +50,7 @@ Never build the convolution matrix --- apply it as
 \begin{equation}
 c(\GG) \;\xrightarrow{\;\text{pad + IFFT}\;}\; u(\rr_i)
 \;\xrightarrow{\;\times V_{\mathrm{eff,loc}}(\rr_i)\;}\;
+(V_{\mathrm{eff,loc}}\,u)(\rr_i)
 \;\xrightarrow{\;\text{FFT + gather}\;}\; (\hat V c)(\GG),
 \end{equation}
 costing $O(N \log N)$ per band. This FFT sandwich dominates the runtime of a plane-wave code and batches
@@ -174,7 +175,7 @@ terms fall below rounding error: lattice vectors with
 $|\RR| \le 6/\sqrt\eta$ (where $\mathrm{erfc} < 10^{-16}$) and reciprocal
 vectors with $|\GG| \le 12\sqrt\eta$ (where
 $\ee^{-G^2/4\eta} < 10^{-15}$). For one atom per cell
-this is a few thousand terms, computed once per geometry.
+this is about a thousand terms, computed once per geometry.
 
 \section{The assembled total (free) energy}
 
@@ -189,7 +190,7 @@ F ={}& \underbrace{\sum_{n\kk} w_\kk f_{n\kk} \sum_{\GG s}
 + E_{\mathrm{NL}}\\
 &+ E_{\mathrm H}[n] + \Exc[n,\mathbf m]
 + E_{\mathrm{Ewald}}
-- \sigma\sum_{n\kk} w_\kk\, s_{n\kk} .
+- \sigma\sum_{n\kk} w_\kk\, s(f_{n\kk}) .
 \end{aligned}}
 \label{eq:fdirect}
 \end{equation}
@@ -224,7 +225,8 @@ monotonically from one iteration to the next: density mixing is not a
 minimization, and small oscillations early on are normal.)
 
 \paragraph{Equilibrium lattice constant and bulk modulus.} Compute
-$F(\Omega)$ at 7--9 volumes within $\pm 8\%$ of experiment, fit the
+$F(\Omega)$ at 7--9 volumes (lattice constants within about $\pm4\%$ of
+experiment, i.e.\ volumes within about $\pm12\%$), fit the
 Birch--Murnaghan equation of state
 \begin{equation}
 E(V) = E_0 + \frac{9 V_0 B_0}{16}

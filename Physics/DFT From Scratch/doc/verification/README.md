@@ -81,3 +81,13 @@ parameter tables were checked against (byte-identical to the file in the
 CP2K repository, November 2026). `reference_data/*_Johnson_Christy_1972.yml`
 are measured optical constants of Au, Ag and Cu from the public-domain
 refractiveindex.info database.
+
+## Known inconsistencies (found in the November 2026 review)
+
+* `logs/jax_small.log` is stale: its PBE row gives F = -33.254848 Ha, while Table 14.1 and
+  `logs/jax_caseA_jellium.log` (a later run of the same JAX cases) give -33.254853 Ha.
+  Both JAX logs also predate the shipped `jax_from_text.py` (they print the old label
+  `F(8.9)`; the script now prints `F(8.10)`). Treat `jax_caseA_jellium.log` as the
+  reference for Table 14.1 until `jax_from_text.py small` is re-run.
+* The 8^3 mesh-symmetry numbers quoted in Section 5.5 ("about 1 and 2 meV") have no log;
+  `logs/mesh_symmetry.log` covers the 4^3 test only.

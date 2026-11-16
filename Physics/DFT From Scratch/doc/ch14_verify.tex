@@ -7,7 +7,9 @@ target. Do not proceed to a stage until the previous one passes.
 \paragraph{About the reference numbers in this chapter.} Every formula,
 table and algorithm in this document has been exercised by an independent
 reference implementation that follows the text literally (plain NumPy,
-double precision, no symmetry beyond time reversal). Numbers quoted
+double precision, no symmetry beyond time reversal in the self-consistent
+calculations; the Fermi-surface sums of Chapters~\ref{ch:conductivity}
+and~\ref{ch:colour} use the irreducible wedge described there). Numbers quoted
 ``from the reference calculation'' come from it. They are not
 experimental or literature values; they are what \emph{these equations}
 give with \emph{these parameters}, and a correct implementation must
@@ -37,7 +39,7 @@ catches conjugation bugs in projectors and $\mathbf L\cdot\mathbf S$.
 \item \textbf{$\mathbf L\cdot\mathbf S$ blocks}: the three checks of
 Section~\ref{sec:lsmatrix}, in the real-harmonic basis you actually use;
 then the $10\times10$ crystal-field model of Chapter~\ref{ch:soc} must give
-$\{-1, +1, +2.5\}\,\xi$ with degeneracies $4, 2, 4$ for $\Delta = 2\xi$.
+$\{-1, +1, +2.5\}\,\zeta_d$ with degeneracies $4, 2, 4$ for $\Delta = 2\zeta_d$.
 \item \textbf{Symmetry}: $[\hat P,\hat H]=0$, $[\Theta,\hat H]=0$,
 $\Theta^2=-1$ on random spinors at the eight TRIM
 (Section~\ref{sec:symmetry}).
@@ -115,7 +117,8 @@ fixes the overall sign of the $k^\ell_{ij}$ term.
 \item \textbf{The self-consistent atom (oracle only).} Adding a Hartree and
 LDA potential to the radial solver and iterating gives the neutral
 pseudo-atom. For the configuration $5d_{3/2}^{4}\,5d_{5/2}^{6}\,6s^1$
-(spherical, not spin-polarized, LDA parameters):
+(spherical, not spin-polarized, LDA parameters; $h = 0.02$,
+$r_{\max} = 24$\,Bohr):
 $\varepsilon_{6s} = -0.2241$, $\varepsilon_{5d_{3/2}} = -0.2971$,
 $\varepsilon_{5d_{5/2}} = -0.2405$\,Ha, hence a spin--orbit splitting of
 the $5d$ level of $1.54$\,eV --- the number quoted in
@@ -251,7 +254,12 @@ larger and a bulk modulus about $50$\,GPa smaller than LDA. (ii) The
 to $a_0$ and takes
 about $10$\,GPa off $B_0$ compared with all-electron-quality
 calculations --- enough to move the LDA lattice constant from slightly
-below to slightly above experiment. This is a property of the
+below to slightly above the room-temperature experimental value. (For a
+strict comparison remember that the experimental numbers are at room
+temperature, while these calculations describe a static lattice; removing
+thermal expansion and zero-point motion lowers the experimental $a_0$ by
+roughly $0.015$\,\AA{} and raises $B_0$ to $180$--$196$\,GPa, depending on
+how the zero-point motion is treated.) This is a property of the
 pseudopotential (no semicore states, no nonlinear core correction), not
 of your code: reproduce the first and third columns. (iii) Spin--orbit
 coupling changes these numbers little (Stage~4): at
@@ -298,7 +306,7 @@ $t_{2g}$ triplet and an $e_g$ doublet, each $\times2$ for spin); with SOC
 three, with degeneracies $4, 2, 4$ in ascending order. Published
 fully-relativistic band structures of Au agree with these values to
 within the differences between pseudopotentials and functionals
-($\sim0.1$\,eV).
+($0.1$--$0.3$\,eV for the $d$ levels; Table~\ref{tab:dbandexp}).
 \item \textbf{Energetics barely move}: switching SOC on lowers the
 free energy by about $0.02$\,Ha, reduces $a_0$ by $0.011$\,\AA{} and
 raises $B_0$ by $6$\,GPa (reference equation-of-state fits, LDA,
@@ -311,7 +319,7 @@ twice (and, if you also wrote a scalar code with two electrons per
 orbital, reproduce its eigenvalues and free energy to solver precision).
 \end{enumerate}
 
-\begin{table}[H]
+\begin{table}[tbp]
 \centering\small
 \begin{tabular}{@{}lll@{}}
 \toprule
@@ -364,7 +372,8 @@ hence the same $\nu_0 = 1$, $\nu_3 = 0$.
 \item \textbf{Velocity operator}: the Hellmann--Feynman test of
 Section~\ref{sec:velocity} at a generic $\kk$ (the reference uses
 fractional $\kk = (0.13, 0.27, 0.41)$): finite-difference band slopes and
-pair-averaged diagonal velocity elements agree to $10^{-7}$\,a.u.; the
+pair-averaged diagonal velocity elements agree to better than
+$10^{-6}$\,a.u.; the
 velocity matrices are Hermitian; dropping the nonlocal term changes the
 velocities by $0.1$--$0.3$\,a.u.
 \item \textbf{Fermi-surface numbers} (fixed potential of Case~B,
@@ -381,7 +390,7 @@ $\lambda < 480$\,nm gives $(67,0,255)$ (strict inequalities on the 1\,nm
 grid; with $\ge$ and $\le$ the values become $(237,0,0)$ and
 $(65,0,255)$).
 \item \textbf{Spectrum}: interband $\varepsilon_2$ below 1 up to
-$\approx1.2$\,eV and above 2 from $\ONSET$\,eV, reflectivity above $0.9$ in
+$\approx1.3$\,eV and above 2 from $\ONSET$\,eV, reflectivity above $0.9$ in
 the near infrared and falling through $0.7$ at $\EDGE$\,eV
 (Fig.~\ref{fig:optics}); Kramers--Kronig consistency of
 Eq.~\eqref{eq:epsinter}; sum rule of Chapter~\ref{ch:colour}.

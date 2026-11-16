@@ -20,7 +20,9 @@ workhorse of modern computational materials science. This document contains
 undergraduate quantum mechanics: the time-independent Schr\"odinger equation,
 Dirac notation, Hermitian operators, the variational principle, the
 hydrogen atom, spin-$\tfrac12$ algebra with Pauli matrices, and first-order
-perturbation theory. Everything
+perturbation theory --- plus enough Python and NumPy to write and debug a
+few hundred lines of array code (the handful of JAX features used are
+explained in Chapter~\ref{ch:gpu}). Everything
 else --- functional calculus, the Hohenberg--Kohn theorems, exchange and
 correlation, Bloch's theorem, pseudopotentials, relativistic corrections,
 iterative eigensolvers, self-consistency acceleration --- is developed here.
@@ -50,7 +52,7 @@ primitive cell. Your arrays stay small, debugging stays sane, and yet nothing
 essential is simplified away.
 
 \item \textbf{It is a metal.} There is no band gap. Occupation numbers are not
-just 0 or 2; you must locate a Fermi level, introduce fractional
+simply ``empty'' or ``full''; you must locate a Fermi level, introduce fractional
 (smeared) occupations, sample the Brillouin zone densely, and stabilize the
 self-consistency loop against ``charge sloshing.'' These are exactly the
 algorithmic complications that separate a toy code from a real one
@@ -72,7 +74,9 @@ $d$ bands at the $\Gamma$ point by more than $1$\,eV --- not a small correction
 but a dominant feature of the band structure. Famously, relativity is why
 gold is yellow while silver (same column, $Z=47$) is white: relativistic
 stabilization of the $6s$ band and destabilization of the $5d$ band shift the
-interband absorption edge from the ultraviolet down into the blue. Your code
+interband absorption edge from the ultraviolet (silver, $\approx 3.8$\,eV)
+down into the visible ($\approx 2.4$\,eV, blue-green light), so gold absorbs
+blue and reflects red and yellow. Your code
 will treat SOC non-perturbatively with two-component spinor wavefunctions
 (Chapter~\ref{ch:soc}).
 
@@ -88,7 +92,12 @@ fixed-potential band solver (Section~\ref{sec:nscf}).
 Chapter~\ref{ch:topology} then only has to assemble them.
 
 \item \textbf{Excellent reference data.} The experimental lattice constant
-($a = 4.0782$\,\AA), bulk modulus ($\approx 173$\,GPa), the photoemission
+($a = 4.0782$\,\AA), bulk modulus ($\approx 173$\,GPa; both are quoted at
+room temperature, while DFT describes a static lattice at $0$\,K: removing the
+zero-point and thermal expansion shrinks $a$ by $\approx 0.015$\,\AA{}, to
+$\approx 4.063$\,\AA, and stiffens the lattice: $B \approx 180$\,GPa from the
+$0$\,K elastic constants, up to $\approx 196$\,GPa in the static-lattice
+estimates used by density-functional benchmarks), the photoemission
 $d$-band positions, and published DFT band structures at every level of
 theory give you unambiguous targets for verification
 (Chapter~\ref{ch:verify}).
@@ -96,7 +105,9 @@ theory give you unambiguous targets for verification
 
 \begin{keybox}{The physical system}
 FCC gold. Primitive lattice vectors (with $a = 4.0782$\,\AA{}
-$= 7.7067$ Bohr):
+$= 7.706681$ Bohr; convert with the full $a_0 = 0.529177211$\,\AA{} ---
+rounding $a$ to four decimals already shifts the Ewald energy by
+$10^{-4}$\,Ha and fails the tests of Chapter~\ref{ch:verify}):
 \[
 \mathbf{a}_1 = \tfrac{a}{2}(0,1,1),\qquad
 \mathbf{a}_2 = \tfrac{a}{2}(1,0,1),\qquad
@@ -273,3 +284,15 @@ $E_{\mathrm{cut}}$, $\sigma$ & plane-wave cutoff; smearing width\\
 A hat ($\hat H$) marks an operator; a tilde ($\tilde p$, $\tilde V$) marks
 a Fourier- or Bessel-transformed function. ``Pair'' always means a
 Kramers pair of spinor bands (two degenerate bands; Section~\ref{sec:symmetry}).
+A few letters are unavoidably reused, each time with the meaning standard
+in that field, and the context always says which is meant: $\sigma$ is the
+smearing width, but $\bm\sigma$ the Pauli matrices and, in
+Chapter~\ref{ch:conductivity}, the conductivity; $s$ is a spinor index, but
+also the smearing entropy $s(x)$, the reduced density gradient of PBE and a
+Gaussian width; $\mu$ is the Fermi level, but also a PBE constant and the
+index of a real spherical harmonic; $\alpha,\beta$ are spinor indices, but
+also the fine-structure constant, the PW92 and PBE constants and, in
+Chapter~\ref{ch:conductivity}, Cartesian directions; and $A$, $B$, $K$, $P$
+each have several meanings (lattice matrices, PW92/PBE constants, mixing
+amplitude; preconditioner, complex conjugation, Kerker operator, the
+$K$ point; parity operator, projections, an eigensolver block).

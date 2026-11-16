@@ -89,7 +89,8 @@ expansion is truncated by keeping every $\GG$ with kinetic energy below a
 \label{eq:ecut}
 \end{equation}
 This is the \emph{only} convergence parameter of the basis: increasing
-$E_{\mathrm{cut}}$ enlarges the variational space, so the total energy
+$E_{\mathrm{cut}}$ enlarges the variational space, so the total energy (with smearing: the
+free energy $F$ of Section~\ref{sec:smearing}) at a fixed $\kk$-mesh
 decreases monotonically toward its converged value (other quantities ---
 eigenvalue differences, lattice constants --- also converge, though not
 necessarily monotonically).
@@ -103,8 +104,8 @@ For gold with an HGH pseudopotential, $E_{\mathrm{cut}} \approx
 \sim 1400$--$2500$ coefficients per band per spin component --- small dense
 problems, ideal for GPU batching.
 
-Plane waves have three cardinal virtues: (i) they are unbiased --- no atom-
-centered basis-set superposition errors; (ii) matrix elements of the kinetic
+Plane waves have three cardinal virtues: (i) they are unbiased --- no
+atom-centered basis-set superposition errors; (ii) matrix elements of the kinetic
 operator and of any multiplicative potential are trivial (diagonal, and
 convolution, respectively); (iii) the map between the coefficient
 representation $c(\GG)$ and the real-space representation $u(\rr)$ on a
@@ -294,7 +295,8 @@ In an insulator, bands are either full or empty and $f_{n\kk} \in \{0,1\}$
 occupation at $T=0$ is a step function $f = \theta(\mu -
 \varepsilon_{n\kk})$: the integrand of every BZ integral is discontinuous
 across the Fermi surface, and a discrete $\kk$-sum converges miserably
-($\sim 1/N_{\kk}$, with wild oscillations). Worse, states at the Fermi level
+(slowly and erratically, with errors that oscillate as the mesh is
+refined). Worse, states at the Fermi level
 flip between occupied and empty from one SCF iteration to the next, making
 self-consistency unstable.
 
@@ -321,8 +323,11 @@ $E$ but the \textbf{Mermin free energy}
 F = E - \sum_{n\kk} w_{\kk}\, \sigma\, s(f_{n\kk}),
 \label{eq:mermin}
 \end{equation}
-which is what must decrease during SCF and what enters total-energy
-comparisons at fixed $\sigma$. Here $s$ is evaluated at $x = (\varepsilon_{n\kk}-\mu)/\sigma$. For the
+which is the variational quantity: it is minimal at self-consistency,
+and it is what enters total-energy comparisons at fixed $\sigma$. (Its
+value need not decrease monotonically from one SCF iteration to the next,
+because density mixing is not a minimization;
+Chapter~\ref{ch:hamiltonian}.) Here $s$ is evaluated at $x = (\varepsilon_{n\kk}-\mu)/\sigma$. For the
 non-thermal schemes $s$ is a ``generalized entropy'' defined so that $F$ is
 still variational:
 $s_0(x) = \ee^{-x^2}/(2\sqrt{\pi})$ for Gaussian and
@@ -346,7 +351,10 @@ root, but do not assume uniqueness when debugging); solve by bisection
 (or Newton with bisection fallback) between $\min \varepsilon - 10\sigma$ and
 $\max\varepsilon + 10\sigma$ to $\sim 10^{-12}$. Include enough
 \emph{empty bands} in the eigensolver: 11-electron gold fills, on average,
-11 spinor bands per $\kk$-point, so solve for $\geq 20$ bands so that
+11 spinor bands per $\kk$-point, and the 11th and 12th bands (the $sp$
+Kramers pair) are partly occupied, so $N_{\mathrm{occ}} = 12$ bands carry
+electrons somewhere in the zone. Solve for $\geq 20$ bands
+($N_{\mathrm{occ}} + 8$, the rule of Chapter~\ref{ch:algorithms}) so that
 the smeared occupations have room to spill and the eigensolver has a buffer
 (Chapter~\ref{ch:algorithms}).
 
