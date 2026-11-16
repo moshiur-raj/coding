@@ -265,10 +265,14 @@ mesh with equal weights $w_{\kk} = 1/N_{\kk}$. It is simpler, impossible to
 get subtly wrong, and on a GPU the extra $\kk$-points are nearly free because
 they batch perfectly, and symmetry-related points \emph{must} then come out
 with identical eigenvalues, which is a useful test. (One reduction is free
-and safe: time reversal maps
-$\kk \to -\kk$ with identical eigenvalues and density,
+and safe for the \emph{charge} density: time reversal maps
+$\kk \to -\kk$ with identical eigenvalues and identical $n(\rr)$,
 Section~\ref{sec:symmetry}, so you may keep one point of each $\pm\kk$ pair
-with doubled weight.) Gold needs a dense mesh ($12^3$ to $16^3$ with
+with doubled weight. It is \emph{not} free for the magnetization: with
+spin--orbit coupling the states at $\kk$ alone carry a nonzero spin density
+that only the states at $-\kk$ cancel. On such a reduced mesh, set
+$\mathbf m = 0$ for a non-magnetic crystal instead of accumulating it ---
+see Section~\ref{sec:symmetry}.) Gold needs a dense mesh ($12^3$ to $16^3$ with
 smearing) for well-converged total energies, because the integrand jumps
 at the Fermi surface; an $8^3$ mesh is already adequate for band
 structures and for debugging. Coordinates:

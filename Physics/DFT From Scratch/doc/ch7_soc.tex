@@ -45,7 +45,8 @@ Lowers high-kinetic-energy ($s$) states.
 Coulomb potential strongly.
 \item \textbf{Spin--orbit}: in the electron's rest frame, the electric field
 $-\nabla V$ of the nucleus appears partly as a magnetic field
-$\mathbf B' \approx -(\mathbf v \times \mathbf E)/c^2$ that acts on the spin
+$\mathbf B' \approx -(\mathbf v \times \mathbf E)/c$ (in our Gaussian-based
+atomic units; in SI units the denominator is $c^2$) that acts on the spin
 moment (a factor $\tfrac12$ from Thomas precession is included in
 \eqref{eq:pauli}).
 \end{itemize}
@@ -277,10 +278,14 @@ same energy at $-\kk$, namely $\Theta\psi$, with reversed spin:
 $\varepsilon_{n,-\kk} = \varepsilon_{n\kk}$. The partner is a genuinely
 different state: if $\Theta\psi = \lambda\psi$ then
 $\Theta^2\psi = |\lambda|^2\psi \ne -\psi$, a contradiction.
-\item The density contributed by $\Theta\psi$ equals that of $\psi$, so
-$-\kk$ adds nothing new to $n(\rr)$ and the magnetization contributions
-cancel, $\mathbf m = 0$: you may sample one of each $\pm\kk$ pair with
-doubled weight.
+\item The charge density contributed by $\Theta\psi$ equals that of
+$\psi$, while its spin density is reversed:
+$\mathbf m_{\Theta\psi}(\rr) = -\mathbf m_{\psi}(\rr)$. Summed over the
+whole mesh the magnetization contributions of $\kk$ and $-\kk$ therefore
+cancel, $\mathbf m = 0$. For $n(\rr)$ the point $-\kk$ adds nothing new,
+so you may sample one of each $\pm\kk$ pair with doubled weight --- but
+then the cancellation of $\mathbf m$ is lost, and $\mathbf m$ must be set
+to zero by hand (see ``Time reversal and the magnetization'' below).
 \end{itemize}
 At a few special points $-\kk$ and $\kk$ are the \emph{same} point of the
 zone, because they differ by a reciprocal lattice vector: $2\kk = \GG_0$.
@@ -325,6 +330,35 @@ correctness test. We call such a pair of bands a \emph{Kramers pair}: pair
 crystals without inversion, e.g.\ GaAs or any surface, SOC does spin-split
 the bands away from the TRIM --- Rashba/Dresselhaus physics the same code
 captures.)
+
+\paragraph{Time reversal and the magnetization.} A Kramers pair at one
+$\kk$ is \emph{not} spin-neutral by itself. Its two members are $\psi$ and
+$\hat P\Theta\psi$; $\Theta$ reverses the spin density and $\hat P$ maps
+$\rr\to-\rr$, so the pair contributes
+\begin{equation}
+\mathbf m_{\mathrm{pair},\kk}(\rr) = \mathbf m_\psi(\rr) - \mathbf m_\psi(-\rr),
+\label{eq:mpair}
+\end{equation}
+an odd function of $\rr$ that is in general \emph{not} zero once SOC is on
+(the spin texture of an SOC eigenstate has no definite parity). This is
+independent of how the eigensolver mixes the two members, because it is a
+trace over the pair. The states at $-\kk$, which are $\Theta\psi$ and
+$\hat P\psi$, contribute exactly $-\mathbf m_{\mathrm{pair},\kk}(\rr)$, so
+$\mathbf m$ vanishes only when both $\kk$ and $-\kk$ are summed. On a mesh
+reduced by time reversal (one point of each $\pm\kk$ pair, doubled weight)
+the doubled weight reproduces $n(\rr)$ exactly but \emph{doubles}
+Eq.~\eqref{eq:mpair} instead of cancelling it. Accumulated and fed to the
+noncollinear XC functional, this spurious $\mathbf m$ produces a spurious
+$\mathbf B_{\mathrm{xc}}$, which breaks time reversal and splits the
+Kramers pairs. The rule is therefore: on a time-reversal-reduced mesh,
+accumulate $n$ only and set $\mathbf m = 0$ (equivalently, symmetrize the
+density matrix, $\hat n \to \tfrac12\big(\hat n + \sigma_y \hat n^{*}
+\sigma_y\big)$, which removes $\mathbf m$ and keeps $n$); a magnetic
+calculation must use the full $\pm\kk$ mesh. (Without SOC each state is a
+spatial orbital times a fixed spinor, and inversion combined with complex
+conjugation gives $|\phi_\kk(-\rr)|^2 = |\phi_\kk(\rr)|^2$, so
+Eq.~\eqref{eq:mpair} vanishes identically --- the problem is specific to
+SOC.)
 
 \paragraph{Both operations at a TRIM: permutations of your array.} At a
 TRIM the state at $-\kk$ is a state at $\kk$ with relabeled plane waves:
@@ -433,9 +467,11 @@ should reproduce this figure.}
 \end{figure}
 
 \begin{gpubox}{GPU/JAX notes}
-The spinor dimension is a fixed axis of length 2 --- fold it into the band
-axis for GEMMs (treat a spinor wavefunction as $2N_G$ complex coefficients)
-and keep it separate for the density construction. Everything stays
+The spinor dimension is a fixed axis of length 2. For the Hamiltonian
+application and the eigensolver, fold it into the coefficient axis (treat a
+spinor wavefunction as one vector of $2N_G$ complex coefficients, so Gram
+and Rayleigh--Ritz matrices are ordinary GEMMs); keep it separate for the
+density construction. Everything stays
 \texttt{complex64/128}; SOC makes the Hamiltonian genuinely complex, so use
 complex-Hermitian (not real-symmetric) linear algebra throughout
 (\texttt{eigh} accepts complex Hermitian matrices

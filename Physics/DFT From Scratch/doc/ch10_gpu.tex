@@ -126,8 +126,9 @@ The entire program reduces to seven device kernels; everything else is glue.
 \begin{enumerate}[leftmargin=2em]
 \item \textbf{Batched zero-pad / gather} between sphere and FFT box.
 \item \textbf{Batched 3D FFT / IFFT} over the $[N_k \times N_b \times 2]$
-batch. In JAX, \texttt{jnp.fft.fftn} over the last three axes of a 4-D array
-is already batched; sizes with small prime factors keep cuFFT on fast paths.
+batch. In JAX, \texttt{jnp.fft.fftn} with \texttt{axes=(-3,-2,-1)} transforms
+only the last three axes of a 4-D array and is therefore already batched
+(without \texttt{axes=} it would transform all four axes); sizes with small prime factors keep cuFFT on fast paths.
 \item \textbf{Elementwise field kernels}: kinetic multiply, local-potential
 multiply, XC evaluation, Kerker filter, preconditioner, smearing functions.
 XLA fuses chains of these into single kernels automatically.

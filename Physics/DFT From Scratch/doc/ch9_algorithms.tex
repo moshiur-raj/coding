@@ -361,12 +361,16 @@ $m_z \gets n_{\uparrow\uparrow}-n_{\downarrow\downarrow}$
 \end{algorithm}
 
 The check: $\frac{\Omega}{N_{\mathrm{grid}}}\sum_{\rr} n(\rr) = N_e$ to
-rounding error, every iteration. For gold $\mathbf m$ must come out zero
-to rounding error \emph{provided} both members of every Kramers pair are
-equally occupied and you have either both $\pm\kk$ in the mesh or the
-doubled weights of Section~\ref{sec:symmetry}; if you skip the
-$\mathbf m$ machinery entirely for a first version, accumulate only
-$n = \sum |u^\uparrow|^2 + |u^\downarrow|^2$.
+rounding error, every iteration. For gold $\mathbf m$ comes out zero to
+rounding error \emph{only} if both members of every Kramers pair are
+equally occupied \emph{and} both $\kk$ and $-\kk$ are in the mesh. On a
+time-reversal-reduced mesh (one point of each $\pm\kk$ pair with doubled
+weight, as in the reference cases of Chapter~\ref{ch:verify}) the doubled
+weights give the correct $n$ but a spurious, nonzero $\mathbf m$
+(Eq.~\eqref{eq:mpair}): there, accumulate only
+$n = \sum |u^\uparrow|^2 + |u^\downarrow|^2$ and set $\mathbf m = 0$
+--- which is also the right choice for a first version of the code. (The
+reference calculations of Chapter~\ref{ch:verify} do exactly this.)
 
 \subsection{Why simple iteration diverges for metals: charge sloshing}
 
