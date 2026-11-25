@@ -6,6 +6,8 @@
 # Rutherford cross section formula. Crank–Nicolson and Numerov were used for numerical methods. 
 
 import os
+# os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = ".90"
+
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 
@@ -36,10 +38,11 @@ dt = dr / v
 
 theta_min = 15 / 180 * pi # cross section should be accurate for theta > theta_min
 z0 = -100 * r_c
+k0 = np.sqrt(2 * m * (E - K / np.abs(z0))) / hbar
 sigma_z = 10 * wlen
 b_min = r_c / 2 / np.tan(theta_min / 2)
 w = 4 * b_min
-l_max = int(2 * k * w)
+l_max = int(1.75 * k * w)
 r_max = 1.25 * np.abs(z0)
 
 n_plot = 1000
@@ -63,7 +66,7 @@ def initialize() -> tuple[jnp.ndarray, ...]:
     z = r[:, None] * cos_theta[None]
     rho = r[:, None] * jnp.sqrt((1 - cos_theta[None]**2))
 
-    psi_0 = jnp.exp(- (z - z0)**2 / 4 / sigma_z**2 - (rho / w)**6 + 1j * k * z)
+    psi_0 = jnp.exp(- (z - z0)**2 / 4 / sigma_z**2 - (rho / w)**6 + 1j * k0 * z)
     norm = np.sqrt((2 * pi)**1.5 * sigma_z * w**2 * sp.special.gamma(1 / 3) / (6 * 2**(1 / 3)))
     psi_0 /= norm
 
@@ -81,7 +84,6 @@ def crank_nicolson_numerov_operators(V_eff: jnp.ndarray) -> dict:
     i = jnp.arange(n)[None, :]
 
     return dict(
-            V_eff=V_eff,
             V_pad=V_pad,
             diag=M0 + c * (2 * T0 + M0 * V_eff),
             upper=jnp.where(i != n - 1, M1 + c * (-T0 + M1 * V_pad[:, 2:]) , 0),
@@ -141,7 +143,7 @@ def cross_section(u: jnp.ndarray | np.ndarray, r: jnp.ndarray | np.ndarray) -> t
         return np.trapezoid(sp.special.spherical_jn(l[:, None], k_ * r[None]) * ur, dx=dr)
 
     with ThreadPoolExecutor(os.cpu_count()) as ex:
-        cols = list(tqdm(ex.map(get_int_jur, k_list), total=k_list.size, desc="momentum space transformation"))
+        cols = list(tqdm(ex.map(get_int_jur, k_list), total=k_list.size, desc="momentum distribution"))
     int_jur = np.stack(cols, axis=1)
 
     phase = np.array([1, -1j, -1, 1j])[l % 4] # (-i)^l
@@ -161,7 +163,7 @@ def simulate() -> tuple[list[np.ndarray], *tuple[np.ndarray, ...]]:
 
     ref = jnp.max(log_prob_density(u, r, P, 0))
     frames = [np.array(log_prob_density(u, r, P, ref))]
-    for _ in tqdm(range(n_frames), desc="simulating"):
+    for _ in tqdm(range(n_frames), desc="simulation"):
         u = next_frame(u, ops)
         frames.append(np.array(
             log_prob_density(u, r, P, ref)
@@ -183,15 +185,20 @@ def plot_cross_section(cs: np.ndarray, theta_k: np.ndarray) -> None:
     barn = 1e-28
     deg = np.degrees(theta_k)
     fig, (ax0, ax1) = plt.subplots(2, 1, figsize=(7, 7), sharex=True, gridspec_kw=dict(height_ratios=[2, 1]))
-    ax0.semilogy(deg[1:], rutherford(theta_k[1:]) / barn, "k-", label="Rutherford")
-    ax0.semilogy(deg, cs / barn, "--", label="simulation (momentum distribution)")
-    ax1.plot(deg[1:], cs[1:] / rutherford(theta_k[1:]), "--")
+    ax0.semilogy(deg[1:], rutherford(theta_k[1:]) / barn, "k-", label="Rutherford Formula")
+    ax0.semilogy(deg, cs / barn, ".", label="Simulation", markevery=25,)
+    ax1.plot(deg[1:], cs[1:] / rutherford(theta_k[1:]), "-")
     for ax in (ax0, ax1):
         ax.axvline(np.degrees(theta_min), color="gray", lw=0.8, ls=":")
+    ax0.annotate("angles properly covered by beam width", xy=(np.degrees(theta_min), 0.04),
+                 xycoords=("data", "axes fraction"), xytext=(np.degrees(theta_min) + 12, 0.04),
+                 textcoords=("data", "axes fraction"),
+                 va="center", fontsize=9, color="gray",
+                 arrowprops=dict(arrowstyle="<-", color="gray", lw=0.8))
     ax1.axhline(1, color="k", lw=0.8)
     ax1.set_ylim(0.9, 1.1)
-    ax0.set_ylabel(r"$d\sigma/d\Omega$ (b/sr)")
-    ax1.set_ylabel("simulation / Rutherford")
+    ax0.set_ylabel(r"$\frac{d\sigma}{d\Omega}$ (b/sr)")
+    ax1.set_ylabel("Accuracy")
     ax1.set_xlabel(r"$\theta$ (deg)")
     ax0.legend()
     fig.tight_layout()
@@ -199,7 +206,6 @@ def plot_cross_section(cs: np.ndarray, theta_k: np.ndarray) -> None:
     plt.close(fig)
 
 def animate(frames: list[np.ndarray], r_img: np.ndarray, theta_img: np.ndarray) -> None:
-    fm = 1e-15
     view = 1.03 * r_max
     pix = view / 600
     x = np.arange(-view, view, pix) + pix / 2
@@ -217,26 +223,27 @@ def animate(frames: list[np.ndarray], r_img: np.ndarray, theta_img: np.ndarray) 
     cmap.set_under("black")
     fig, ax = plt.subplots(figsize=(8, 7.4))
     im = ax.imshow(to_cartesian(frames[0]), origin="lower", cmap=cmap,
-                   extent=(-view / fm, view / fm, -view / fm, view / fm),
+                   extent=(-view / wlen, view / wlen, -view / wlen, view / wlen),
                    norm=colors.LogNorm(vmin=1e-7, vmax=1))
     phi = np.linspace(0, 2 * pi, 400)
-    ax.plot(r_max / fm * np.cos(phi), r_max / fm * np.sin(phi), "w--", lw=0.8, label="boundary")
-    ax.set_xlabel("$z$ (fm)")
-    ax.set_ylabel(r"$\rho$ (fm)")
+    ax.plot(r_max / wlen * np.cos(phi), r_max / wlen * np.sin(phi), "w--", lw=0.8, label="boundary")
+    ax.set_xlabel(r"$z / \lambda$")
+    ax.set_ylabel(r"$\rho / \lambda$")
     ax.legend(loc="upper right")
-    fig.colorbar(im, ax=ax, label=r"$|\psi|^2$ / initial peak")
+    fig.colorbar(im, ax=ax, label=r"$|\psi|^2$")
     title = ax.set_title("")
     fig.tight_layout()
 
     def update(i: int):
         im.set_data(to_cartesian(frames[i]))
-        title.set_text(f"t = {i * steps_per_frame * dt * 1e21:.1f} zs")
+        title.set_text(rf"$t = {i * steps_per_frame * dt * 1e21:.1f} \times 10^{{-21}}$ s")
         return (im,)
 
     ani = animation.FuncAnimation(fig, update, frames=len(frames), interval=1000 / fps)
-    writer = animation.FFMpegWriter(fps=fps, codec="hevc_vulkan", extra_args=[
-        "-init_hw_device", "vulkan=vk:0", "-filter_hw_device", "vk", "-vf", "format=nv12,hwupload", "-qp", "22"])
-    ani.save("rutherford.mp4", writer=writer, dpi=150)
+    writer = animation.FFMpegWriter(fps=fps, codec="libx264",
+                                    extra_args=["-pix_fmt", "yuv420p", "-crf", "18", "-preset",
+                                                "medium"])
+    ani.save("rutherford.mp4", writer=writer, dpi=300)
     plt.close(fig)
 
 frames, cs, r_img, theta_img, theta_k = simulate()
